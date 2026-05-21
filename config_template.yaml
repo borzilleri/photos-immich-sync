@@ -1,0 +1,183 @@
+#####################################
+# Immich API Client Settings
+#
+# Immich API URL.
+# This is the URL to your Immich instance, including the /api path.
+immich.api.url: "https://immich.example.com/api"
+#
+# Immich API Key.
+# See README for required scopes.
+immich.api.key: "1234567890"
+# 
+# Maximum concurrent API requests to allow.
+# This can be adjusted to throttle your network throughput.
+# NOTE: Asset upload speed is also gated by max concurrent downloads,
+# but Album and Tag sync are primarily API operations, and will be gated 
+# by this setting. 
+# This must be a positive integer.
+immich.api.maxConcurrentRequests: 500
+#
+# Maximum number of attempts to try a failed API call.
+# This must be a positive integer. (A setting of 1 will disable retries)
+immich.api.retryAttempts: 3
+#
+# Timeout for API requests in seconds
+immich.api.requestTimeoutSeconds: 120
+
+
+##########################################
+# Immich Asset Sync Settings
+# 
+# Overwrite Immich Asset Info
+# Whether to overwrite Asset info in Immich.
+#
+# NOTE: When enabled, photos-immich-sync will always update asset info
+# when it's part of a sync batch. This will overwrite any changes
+# in immich, and does not attempt to detect differences.
+# Affected fields include: title, description,
+# TODO: Other Fields
+immich.assets.overwriteInfo: true
+#
+# Delete Assets from Immich
+# Whether to delete assets from immich. During full syncs, managed assets
+# that are present in Immich but not locally in Photos will be deleted. During
+# delta syncs, deleted assets in the delta change set will be deleted from
+# Immich. Disable this to prevent asset deletion entirely.
+immich.assets.delete: true
+#
+# Force Delete Immich Assets
+#
+# When deleting assets in Immich, this controls whether assets are deleted
+# immediately, or sent to the Immich "Trash".
+# This only has an effect if immich.assets.delete is true.
+immich.assets.forceDelete: true
+#
+# Maximum Concurrent Downloaded Assets
+#
+# Maximum number of concurrent assets that will be concurrently downloaded from
+# photos and synced to Immich. This is primarily used to control how much disk
+# space is used at once. 
+# Note: This operates at the "Asset" level, not "File" level, most assets will
+# have a single resource file, but Live Photos, edited photos, and RAW+JPEG
+# photos will likely have 2 resource files.
+immich.assets.maxConcurrentDownloads: 500
+
+##########################################
+# Immich Tag Sync Settings
+#
+# Enable Tag Sync
+#
+# Whether to sync Photos keywords as Immich tags.
+# IMPORTANT:
+# Photos Keywords are not exposed via the PhotoKit API, enabling this requires
+# inspecting the Photos SQLite database to extract this information. This is not
+# supported by Apple and may break with with updates. See the README for
+# additional info.
+#
+# Photos keywords will be created in Immich as tags, and deleted if
+# removed from Photos. Photos managed by this app will be added to/removed from
+# tags to mirror their state in Photos.
+# 
+# Non-Managed assets in Immich will not be removed from these tags, if
+# manually added.
+immich.tags.enabled: false
+#
+# Delete Tags from Immich
+# When enabled, tags in Immich that are not present in Photos will be deleted
+# during a sync.
+immich.tags.delete: true
+# 
+# Parent Tag
+# 
+# This will child all Photos keywords under this parent tag in Immich.
+# Changing this value after a sync has run may result in creating a duplicate
+# tag heirarchy.
+#
+# NOTE: It is *STRONGLY* recommended to set a parent tag. This restricts tag
+# creation/deletion to only photos keywords, allowing you to maintain other
+# Immich-only tags.
+immich.tags.parentTag: "🍎"
+#
+# Tagging Stacked Assets
+# If true, when an asset stack is added to a tag, only the primary asset will
+# be added.
+# NOTE: Immich does not display assets in a stack in the tag view.
+immich.tags.stackPrimaryOnly: true
+
+##########################################
+# Immich Album Sync Settings
+#
+# Enable Album Sync
+# When true, Photos Albums & membership will be synced with Immich.
+# NOTE: In order to track albums (to properly handle renames and deletions), 
+# the album description will have a marker added to it. See the README 
+# for details.
+immich.albums.enabled: true
+#
+# Delete Albums from Immich
+# Whether to delete albums from Immich. During a full sync, albums that are 
+# present in Immich but not locally in Photos will be deleted. During a delta
+# sync, albums that are deleted in the delta change set will be deleted from
+# Immich. Disable this to prevent album deletion entirely.
+immich.albums.delete: true
+# 
+# Album Folder Path Separator
+# Immich does not support album folders/nested albums, so Photos Albums will 
+# have their folder path flattened to a string, joining each folder name with 
+# this property.
+immich.albums.pathSeparator: " / "
+#
+# Create Empty Albums
+# Controls whether Photos Albums without any assets in them will be synced to
+# Immich.
+immich.albums.createEmpty: false
+# If true, when an asset stack is added to an album, only the primary asset will be added.
+# NOTE: Immich does not display assets in a stack in the album view.
+immich.albums.stackPrimaryOnly: true
+
+##########################################
+# Apple Photos Export Settings
+#
+# Include Title and Caption
+# IMPORTANT:
+# Title and Caption data is not exposed by the PhotoKit API, this setting
+# enables inspecting the Photos SQLite database to extract this information.
+# This is not supported by Apple and may break with updates. See the README for
+# additional info.
+#
+photos.export.includeTitleCaption: false
+#
+# Include Burst Photos
+# Whether to export burst photos, and which burst assets to export.
+# NOTE: User-Selected burst photos will always be exported.
+# (These are photos that that you have manually selected in the burst (via 
+# "Make a Selection...", and show up separately in your Library)
+#
+# Possible Values: all, none, selected
+#
+# none: No Assets in the burst group will be exported.
+# all: All Assets in the burst group will be exported.
+# selected : Only "Auto-Picked" assets in a burst group will be exported.
+# (These are assets that appear with a white dot beneath them in the "Make a Selection" UI)
+photos.export.includeBursts: none
+#
+# Maximum Export Concurrency
+# This controls the maximum concurrency for export operations.
+# This gates concurrent calls to the Photos API. Typically you do not need to
+# adjust this, but if you are experiencing issues with Photos API rate limiting,
+# reducing this may help.
+photos.export.exportConcurrency: 1000
+
+
+
+###################################
+# Photos Download Settings
+#
+# Download Timeout in Seconds
+# This is a timeout for downloading photo resources to disk.
+# This must be a postive integer.
+photos.download.timeoutSeconds: 300
+# Download Retry Attempts
+# Number of times to retry downloading a photo resource.
+# This must be a positive integer. (A setting of 1 will disable retries)
+photos.download.retryAttempts: 3

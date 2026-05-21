@@ -1,0 +1,570 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		AB69EBAB2F66573C0007E41C /* Codextended in Frameworks */ = {isa = PBXBuildFile; productRef = AB69EBAA2F66573C0007E41C /* Codextended */; };
+		AB83C4FD2F5697E400962517 /* AsyncHTTPClient in Frameworks */ = {isa = PBXBuildFile; productRef = AB83C4FC2F5697E400962517 /* AsyncHTTPClient */; };
+		AB83C5032F56985400962517 /* OpenAPIAsyncHTTPClient in Frameworks */ = {isa = PBXBuildFile; productRef = AB83C5022F56985400962517 /* OpenAPIAsyncHTTPClient */; };
+		AB98CB872F4D390900B66464 /* Photos.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AB98CB862F4D390900B66464 /* Photos.framework */; };
+		AB98CB8C2F4D3B9F00B66464 /* ArgumentParser in Frameworks */ = {isa = PBXBuildFile; productRef = AB98CB8B2F4D3B9F00B66464 /* ArgumentParser */; };
+		AB98CBF92F4EBD6000B66464 /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = AB98CBF82F4EBD6000B66464 /* OpenAPIRuntime */; };
+		AB98CBFC2F4EBD7000B66464 /* OpenAPIURLSession in Frameworks */ = {isa = PBXBuildFile; productRef = AB98CBFB2F4EBD7000B66464 /* OpenAPIURLSession */; };
+		AB99YAMS2F5E00030096251A /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = AB99YAMS2F5E000200962519 /* Yams */; };
+		ABCAFE022F4D389300B66464 /* Version.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCAFE032F4D389300B66464 /* Version.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		AB98CB792F4D389300B66464 /* Copy Files */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			name = "Copy Files";
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		AB98CB7B2F4D389300B66464 /* photos-immich-sync */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "photos-immich-sync"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AB98CB862F4D390900B66464 /* Photos.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Photos.framework; path = System/Library/Frameworks/Photos.framework; sourceTree = SDKROOT; };
+		ABCAFE032F4D389300B66464 /* Version.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Version.swift; sourceTree = DERIVED_FILE_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+		AB8667A82FB94CD00086412E /* Exceptions for "photos-immich-sync" folder in "Compile Sources" phase from "photos-immich-sync" target */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			buildPhase = AB98CB772F4D389300B66464 /* Sources */;
+			membershipExceptions = (
+				"openapi-generator-config.yaml",
+				openapi.json,
+			);
+		};
+/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		AB98CB7D2F4D389300B66464 /* photos-immich-sync */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				AB8667A82FB94CD00086412E /* Exceptions for "photos-immich-sync" folder in "Compile Sources" phase from "photos-immich-sync" target */,
+			);
+			path = "photos-immich-sync";
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		AB98CB782F4D389300B66464 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AB98CBFC2F4EBD7000B66464 /* OpenAPIURLSession in Frameworks */,
+				AB83C4FD2F5697E400962517 /* AsyncHTTPClient in Frameworks */,
+				AB69EBAB2F66573C0007E41C /* Codextended in Frameworks */,
+				AB98CB8C2F4D3B9F00B66464 /* ArgumentParser in Frameworks */,
+				AB98CBF92F4EBD6000B66464 /* OpenAPIRuntime in Frameworks */,
+				AB98CB872F4D390900B66464 /* Photos.framework in Frameworks */,
+				AB83C5032F56985400962517 /* OpenAPIAsyncHTTPClient in Frameworks */,
+				AB99YAMS2F5E00030096251A /* Yams in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		AB98CB722F4D389300B66464 = {
+			isa = PBXGroup;
+			children = (
+				AB98CB7D2F4D389300B66464 /* photos-immich-sync */,
+				ABCAFE042F4D389300B66464 /* Generated */,
+				AB98CB852F4D390900B66464 /* Frameworks */,
+				AB98CB7C2F4D389300B66464 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		AB98CB7C2F4D389300B66464 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AB98CB7B2F4D389300B66464 /* photos-immich-sync */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		AB98CB852F4D390900B66464 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				AB98CB862F4D390900B66464 /* Photos.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		ABCAFE042F4D389300B66464 /* Generated */ = {
+			isa = PBXGroup;
+			children = (
+				ABCAFE032F4D389300B66464 /* Version.swift */,
+			);
+			name = Generated;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AB98CB7A2F4D389300B66464 /* photos-immich-sync */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AB98CB822F4D389300B66464 /* Build configuration list for PBXNativeTarget "photos-immich-sync" */;
+			buildPhases = (
+				ABCAFE012F4D389300B66464 /* Generate Version */,
+				AB98CB772F4D389300B66464 /* Sources */,
+				AB98CB782F4D389300B66464 /* Frameworks */,
+				AB98CB792F4D389300B66464 /* Copy Files */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AB98CBFE2F4EBDA900B66464 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				AB98CB7D2F4D389300B66464 /* photos-immich-sync */,
+			);
+			name = "photos-immich-sync";
+			packageProductDependencies = (
+				AB98CB8B2F4D3B9F00B66464 /* ArgumentParser */,
+				AB98CBF82F4EBD6000B66464 /* OpenAPIRuntime */,
+				AB98CBFB2F4EBD7000B66464 /* OpenAPIURLSession */,
+				AB83C4FC2F5697E400962517 /* AsyncHTTPClient */,
+				AB83C5022F56985400962517 /* OpenAPIAsyncHTTPClient */,
+				AB99YAMS2F5E000200962519 /* Yams */,
+				AB69EBAA2F66573C0007E41C /* Codextended */,
+			);
+			productName = "photos-immich-sync";
+			productReference = AB98CB7B2F4D389300B66464 /* photos-immich-sync */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		AB98CB732F4D389300B66464 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2620;
+				LastUpgradeCheck = 2640;
+				TargetAttributes = {
+					AB98CB7A2F4D389300B66464 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+				};
+			};
+			buildConfigurationList = AB98CB762F4D389300B66464 /* Build configuration list for PBXProject "photos-immich-sync" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = AB98CB722F4D389300B66464;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				AB98CB8A2F4D3B9F00B66464 /* XCRemoteSwiftPackageReference "swift-argument-parser" */,
+				AB98CBF62F4EBD2900B66464 /* XCRemoteSwiftPackageReference "swift-openapi-generator" */,
+				AB98CBF72F4EBD6000B66464 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */,
+				AB98CBFA2F4EBD7000B66464 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */,
+				AB83C4FB2F5697E400962517 /* XCRemoteSwiftPackageReference "async-http-client" */,
+				AB83C5012F56985400962517 /* XCRemoteSwiftPackageReference "swift-openapi-async-http-client" */,
+				AB99YAMS2F5E000100962518 /* XCRemoteSwiftPackageReference "Yams" */,
+				AB69EBA92F66573C0007E41C /* XCRemoteSwiftPackageReference "Codextended" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = AB98CB7C2F4D389300B66464 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				AB98CB7A2F4D389300B66464 /* photos-immich-sync */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		ABCAFE012F4D389300B66464 /* Generate Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Version";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Version.swift",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "\"${SRCROOT}/scripts/generate-version.sh\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		AB98CB772F4D389300B66464 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				ABCAFE022F4D389300B66464 /* Version.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AB98CBFE2F4EBDA900B66464 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = AB98CBFD2F4EBDA900B66464 /* OpenAPIGenerator */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		AB98CB802F4D389300B66464 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CREATE_INFOPLIST_SECTION_IN_BINARY = YES;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 7VW63UWXDW;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		AB98CB812F4D389300B66464 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CREATE_INFOPLIST_SECTION_IN_BINARY = YES;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 7VW63UWXDW;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		AB98CB832F4D389300B66464 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				AUTOMATION_APPLE_EVENTS = NO;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_ASSET_PATHS = "photos-immich-sync/openapi.json photos-immich-sync/openapi-generator-config.yaml";
+				DEVELOPMENT_TEAM = 7VW63UWXDW;
+				DSTROOT = $SRCROOT/build/pkgroot;
+				ENABLE_FILE_ACCESS_PICTURE_FOLDER = readonly;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "photos-immich-sync needs access to your Photos library to export assets and metadata for syncing to Immich.";
+				"OTHER_SWIFT_FLAGS[arch=*]" = "-parse-as-library";
+				PRODUCT_BUNDLE_IDENTIFIER = "io.rampant.photos-immich-sync";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
+				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
+				RUNTIME_EXCEPTION_ALLOW_UNSIGNED_EXECUTABLE_MEMORY = NO;
+				RUNTIME_EXCEPTION_DEBUGGING_TOOL = NO;
+				RUNTIME_EXCEPTION_DISABLE_EXECUTABLE_PAGE_PROTECTION = NO;
+				RUNTIME_EXCEPTION_DISABLE_LIBRARY_VALIDATION = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		AB98CB842F4D389300B66464 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				AUTOMATION_APPLE_EVENTS = NO;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
+				CODE_SIGN_STYLE = Manual;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_ASSET_PATHS = "photos-immich-sync/openapi.json photos-immich-sync/openapi-generator-config.yaml";
+				DEVELOPMENT_TEAM = 7VW63UWXDW;
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = 7VW63UWXDW;
+				DSTROOT = $SRCROOT/build/pkgroot;
+				ENABLE_FILE_ACCESS_PICTURE_FOLDER = readonly;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "photos-immich-sync needs access to your Photos library to export assets and metadata for syncing to Immich.";
+				"OTHER_SWIFT_FLAGS[arch=*]" = "-parse-as-library";
+				PRODUCT_BUNDLE_IDENTIFIER = "io.rampant.photos-immich-sync";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
+				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
+				RUNTIME_EXCEPTION_ALLOW_UNSIGNED_EXECUTABLE_MEMORY = NO;
+				RUNTIME_EXCEPTION_DEBUGGING_TOOL = NO;
+				RUNTIME_EXCEPTION_DISABLE_EXECUTABLE_PAGE_PROTECTION = NO;
+				RUNTIME_EXCEPTION_DISABLE_LIBRARY_VALIDATION = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		AB98CB762F4D389300B66464 /* Build configuration list for PBXProject "photos-immich-sync" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AB98CB802F4D389300B66464 /* Debug */,
+				AB98CB812F4D389300B66464 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AB98CB822F4D389300B66464 /* Build configuration list for PBXNativeTarget "photos-immich-sync" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AB98CB832F4D389300B66464 /* Debug */,
+				AB98CB842F4D389300B66464 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		AB69EBA92F66573C0007E41C /* XCRemoteSwiftPackageReference "Codextended" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/JohnSundell/Codextended";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.3.0;
+			};
+		};
+		AB83C4FB2F5697E400962517 /* XCRemoteSwiftPackageReference "async-http-client" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/swift-server/async-http-client.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.32.0;
+			};
+		};
+		AB83C5012F56985400962517 /* XCRemoteSwiftPackageReference "swift-openapi-async-http-client" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/swift-server/swift-openapi-async-http-client";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.3.0;
+			};
+		};
+		AB98CB8A2F4D3B9F00B66464 /* XCRemoteSwiftPackageReference "swift-argument-parser" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-argument-parser.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.7.0;
+			};
+		};
+		AB98CBF62F4EBD2900B66464 /* XCRemoteSwiftPackageReference "swift-openapi-generator" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-openapi-generator";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.10.4;
+			};
+		};
+		AB98CBF72F4EBD6000B66464 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-openapi-runtime";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.10.1;
+			};
+		};
+		AB98CBFA2F4EBD7000B66464 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-openapi-urlsession";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.2.0;
+			};
+		};
+		AB99YAMS2F5E000100962518 /* XCRemoteSwiftPackageReference "Yams" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/jpsim/Yams";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AB69EBAA2F66573C0007E41C /* Codextended */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AB69EBA92F66573C0007E41C /* XCRemoteSwiftPackageReference "Codextended" */;
+			productName = Codextended;
+		};
+		AB83C4FC2F5697E400962517 /* AsyncHTTPClient */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AB83C4FB2F5697E400962517 /* XCRemoteSwiftPackageReference "async-http-client" */;
+			productName = AsyncHTTPClient;
+		};
+		AB83C5022F56985400962517 /* OpenAPIAsyncHTTPClient */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AB83C5012F56985400962517 /* XCRemoteSwiftPackageReference "swift-openapi-async-http-client" */;
+			productName = OpenAPIAsyncHTTPClient;
+		};
+		AB98CB8B2F4D3B9F00B66464 /* ArgumentParser */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AB98CB8A2F4D3B9F00B66464 /* XCRemoteSwiftPackageReference "swift-argument-parser" */;
+			productName = ArgumentParser;
+		};
+		AB98CBF82F4EBD6000B66464 /* OpenAPIRuntime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AB98CBF72F4EBD6000B66464 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */;
+			productName = OpenAPIRuntime;
+		};
+		AB98CBFB2F4EBD7000B66464 /* OpenAPIURLSession */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AB98CBFA2F4EBD7000B66464 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */;
+			productName = OpenAPIURLSession;
+		};
+		AB98CBFD2F4EBDA900B66464 /* OpenAPIGenerator */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AB98CBF62F4EBD2900B66464 /* XCRemoteSwiftPackageReference "swift-openapi-generator" */;
+			productName = "plugin:OpenAPIGenerator";
+		};
+		AB99YAMS2F5E000200962519 /* Yams */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AB99YAMS2F5E000100962518 /* XCRemoteSwiftPackageReference "Yams" */;
+			productName = Yams;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = AB98CB732F4D389300B66464 /* Project object */;
+}

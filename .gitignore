@@ -1,0 +1,7 @@
+.claude
+.cursor
+AGENTS.md
+config.yaml
+immich-api/
+build/
+dist/
