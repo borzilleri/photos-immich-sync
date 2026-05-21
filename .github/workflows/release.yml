@@ -31,11 +31,11 @@ jobs:
     # os version.
     runs-on: macos-26
 
-    env:
-      KEYCHAIN_PATH: ${{ runner.temp }}/build.keychain-db
-      NOTARY_KEY_PATH: ${{ runner.temp }}/AuthKey.p8
-
     steps:
+      - name: Configure runner temp paths
+        run: |
+          echo "KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain-db" >> "$GITHUB_ENV"
+          echo "NOTARY_KEY_PATH=$RUNNER_TEMP/AuthKey.p8" >> "$GITHUB_ENV"
       - name: Checkout main
         uses: actions/checkout@v4
         with:
@@ -180,7 +180,6 @@ jobs:
           chmod 600 "$NOTARY_KEY_PATH"
 
           {
-            echo "NOTARY_KEY_PATH=$NOTARY_KEY_PATH"
             echo "NOTARY_KEY_ID=$APP_STORE_CONNECT_KEY_ID"
             echo "NOTARY_ISSUER_ID=$APP_STORE_CONNECT_ISSUER_ID"
           } >> "$GITHUB_ENV"
