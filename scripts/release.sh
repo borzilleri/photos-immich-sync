@@ -227,6 +227,7 @@ run_archive() {
     -destination 'generic/platform=macOS' \
     -archivePath "$ARCHIVE_PATH" \
     -derivedDataPath "$DERIVED_DATA" \
+    -skipPackagePluginValidation \
     ARCHS="arm64 x86_64" \
     ONLY_ACTIVE_ARCH=NO \
     CODE_SIGN_STYLE=Manual \
