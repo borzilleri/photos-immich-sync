@@ -41,7 +41,7 @@ extension PhotosImmichSync {
       Log.configure(verbosity: Verbosity.fromFlags(quiet: global.quiet, verbose: global.verbose))
       let log = Log.forCategory(APP_NAME)
       do {
-        try PhotosCore.checkAuthorization(requireAuth: true, requestAuth: true)
+        try PhotosCore.checkAuthorization(requireAuth: false, requestAuth: true)
         if Log.summary().hasErrors {
           throw ExitCode.failure
         }
