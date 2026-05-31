@@ -113,7 +113,7 @@ final class LogSink: @unchecked Sendable {
   /// Emits one log line. Always writes to `osLogger`; conditionally writes to
   /// stdout/stderr depending on the configured verbosity; bumps the `RunSummary`
   /// counter for the two tracked levels (`.error` -> `errors`, `.warning` ->
-  /// `warnings`). Other levels are not counted.
+  /// `warnings`).
   fileprivate func emit(
     level: EmitLevel,
     category: String,
@@ -129,11 +129,6 @@ final class LogSink: @unchecked Sendable {
     let detailSuffix = LogSink.formatDetail(sourceLocation: sourceLocation, cause: cause)
     let fullLine = baseLine + detailSuffix
 
-    // os.Logger is thread-safe; do this outside the lock to keep the critical
-    // section short. SECURITY-REVIEW: log messages may include Photos asset
-    // metadata (album names, captions) that is personal to the user. Subsystem
-    // is local-only; `.public` is intentional so values aren't redacted in the
-    // system log a user inspects on their own machine.
     switch level {
     case .error: osLogger.error("\(fullLine, privacy: .public)")
     case .warning: osLogger.warning("\(fullLine, privacy: .public)")
@@ -215,9 +210,6 @@ final class LogSink: @unchecked Sendable {
     return out
   }
 
-  /// Short tag printed alongside the category for level disambiguation. `progress`
-  /// gets no tag so today's `print("Immich: Syncing X assets")` shape is preserved
-  /// verbatim.
   private static func tag(for level: EmitLevel) -> String? {
     switch level {
     case .error: return "CRITICAL"
@@ -236,8 +228,6 @@ final class LogSink: @unchecked Sendable {
 enum Log {
   fileprivate static let sink = LogSink()
 
-  /// Set the console verbosity. Call once during `PhotosImmichSync.run()` before
-  /// any service starts logging. Subsequent calls are allowed but discouraged.
   static func configure(verbosity: Verbosity) {
     sink.configure(verbosity: verbosity)
   }
@@ -248,14 +238,9 @@ enum Log {
     CategoryLog(category: name)
   }
 
-  /// Snapshot of severity counts accumulated since process start. Read at end of
-  /// `run()` for the exit code and end-of-run summary lines.
   static func summary() -> RunSummary { sink.summary() }
 }
 
-/// Per-category log handle. Holds one `os.Logger` instance and writes through the
-/// shared `LogSink`. Cheap and `Sendable`; instances are typically stashed as
-/// `private let log = Log.forCategory("...")` on the owning service.
 struct CategoryLog: Sendable {
   let category: String
   private let logger: Logger
@@ -265,8 +250,8 @@ struct CategoryLog: Sendable {
     self.logger = Logger(subsystem: LOGGER_SUBSYSTEM, category: category)
   }
 
-  /// A fatal/critical event. Counted as `.critical` in `RunSummary`. Surfaced on
-  /// stderr at every verbosity (including `--quiet`).
+  /// A fatal/critical event.
+  /// Surfaced on stderr at every verbosity (including `--quiet`).
   func error(
     _ message: String,
     stage: PipelineStage? = nil,
@@ -282,7 +267,7 @@ struct CategoryLog: Sendable {
       sourceLocation: "\(file):\(line):\(function)")
   }
 
-  /// A recoverable but noteworthy event. Counted as `.warning` in `RunSummary`.
+  /// A recoverable but noteworthy event.
   /// Surfaced on stderr at `normal` verbosity and above.
   func warning(
     _ message: String,
@@ -299,8 +284,8 @@ struct CategoryLog: Sendable {
       sourceLocation: "\(file):\(line):\(function)")
   }
 
-  /// Tracked informational event (e.g. "skipping empty album"). Counted as `.info`
-  /// in `RunSummary`. Surfaced on stdout at `-v` and above.
+  /// Tracked informational event (e.g. "skipping empty album").
+  /// Surfaced on stdout at `-v` and above.
   func info(
     _ message: String,
     stage: PipelineStage? = nil,
@@ -316,7 +301,7 @@ struct CategoryLog: Sendable {
       sourceLocation: "\(file):\(line):\(function)")
   }
 
-  /// Routine status/progress line (e.g. "Syncing N assets..."). Not counted.
+  /// Routine status/progress line (e.g. "Syncing N assets...").
   /// Surfaced on stdout at `normal` verbosity and above.
   func progress(_ message: String) {
     Log.sink.emit(
@@ -324,8 +309,8 @@ struct CategoryLog: Sendable {
       message: message, stage: nil, context: [:], cause: nil, sourceLocation: nil)
   }
 
-  /// Finer-grained debugging line. Not counted. Surfaced on stdout at `-vv` and
-  /// above; always written to `os.Logger` (the system filters its own consumers).
+  /// Finer-grained debugging line.
+  /// Surfaced on stdout at `-vv` and above.
   func debug(
     _ message: String,
     stage: PipelineStage? = nil,
@@ -340,8 +325,8 @@ struct CategoryLog: Sendable {
       sourceLocation: "\(file):\(line):\(function)")
   }
 
-  /// Finest-grained tracing (e.g. HTTP request bodies). Not counted. Surfaced on
-  /// stdout only at `-vvv`.
+  /// Finest-grained tracing (e.g. HTTP request bodies).
+  /// Surfaced on stdout only at `-vvv`.
   func trace(
     _ message: String,
     stage: PipelineStage? = nil,
