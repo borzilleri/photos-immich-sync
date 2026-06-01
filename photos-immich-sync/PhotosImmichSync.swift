@@ -40,6 +40,8 @@ extension PhotosImmichSync {
     func run() async throws {
       Log.configure(verbosity: Verbosity.fromFlags(quiet: global.quiet, verbose: global.verbose))
       let log = Log.forCategory(APP_NAME)
+      let updateCheckEnabled = (try? AppConfig.load(fromFile: DEFAULT_CONFIG_PATH))?.enableUpdateCheck ?? true
+      await runUpdateCheck(enabled: updateCheckEnabled, log: log)
       do {
         try PhotosCore.checkAuthorization(requireAuth: false, requestAuth: true)
         if Log.summary().hasErrors {
@@ -85,6 +87,11 @@ extension PhotosImmichSync {
       }
     }
   }
+}
+
+private func runUpdateCheck(enabled: Bool, log: CategoryLog) async {
+  guard enabled else { return }
+  await VersionCheck.notifyIfUpdateAvailable(currentVersion: APP_VERSION, log: log)
 }
 
 private func makeSyncStack(config: AppConfig, fileService: FileService) throws -> Services {
@@ -154,6 +161,8 @@ private func runSync(
   let log = Log.forCategory(APP_NAME)
   do {
     let config = try AppConfig.load(fromFile: sync.configFile)
+
+    await runUpdateCheck(enabled: config.enableUpdateCheck, log: log)
 
     let fileService = try FileService()
     defer { fileService.cleanup() }
