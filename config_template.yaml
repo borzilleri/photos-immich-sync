@@ -19,22 +19,40 @@ immich:
     #
     # Immich API Key.
     # See README for required scopes.
-    key: "1234567890"
+    apiKey: "1234567890"
+    #
+    # Client Connection & Request Settings
+    # You should not need to adjust these settings, unless you are experiencing
+    # issues. 
     #
     # Maximum concurrent API requests to allow.
-    # This can be adjusted to throttle your network throughput.
     # NOTE: Asset upload speed is also gated by max concurrent downloads,
     # but Album and Tag sync are primarily API operations, and will be gated
     # by this setting.
     # This must be a positive integer.
-    maxConcurrentRequests: 500
+    maxConcurrentRequests: 32
     #
     # Maximum number of attempts to try a failed API call.
     # This must be a positive integer. (A setting of 1 will disable retries)
     retryAttempts: 3
     #
-    # Timeout for API requests in seconds
-    requestTimeoutSeconds: 120
+    # Connection establishment timeout, in seconds.
+    # Maximum time to wait while establishing a connection to the Immich server.
+    # This must be a positive integer.
+    connectTimeoutSeconds: 30
+    #
+    # Connection idle timeout, in seconds.
+    # Maximum time the connection may sit idle (no data being sent or received) 
+    # before the request fails.
+    # Set to 0 to disable.
+    connectionIdleTimeoutSeconds: 300
+    #
+    # Overall request timeout, in seconds.
+    # Total 
+    # An absolute cap on the total time for a single request. Disabled by default (0),
+    # because it also kills large-but-healthy uploads; the stall timeout above is the
+    # primary guard. Set a positive value only if you want a hard total-time ceiling.
+    requestTimeoutSeconds: 0
 
   ##########################################
   # Immich Asset Sync Settings

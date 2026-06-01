@@ -3,6 +3,7 @@ import AsyncHTTPClient
 import Foundation
 import HTTPTypes
 import NIOCore
+import NIOHTTP2
 import OpenAPIAsyncHTTPClient
 import OpenAPIRuntime
 import OpenAPIURLSession
@@ -127,12 +128,19 @@ private func timeAmount(from duration: Duration) -> TimeAmount {
   return .nanoseconds(sum)
 }
 
+// Retriable Http Error Codes
+private let RETRYABLE_HTTP_CLIENT_ERRORS: [HTTPClientError] = [.deadlineExceeded, .readTimeout, .writeTimeout]
+private let RETRYABLE_HTTP2_ERROR_CODES: [HTTP2ErrorCode] = [
+  .cancel, .refusedStream, .enhanceYourCalm, .internalError, .connectError,
+]
+
 final public class ImmichApiClient: Sendable {
   let SEARCH_MAX_SIZE: Double = 1_000
   let SEARCH_MAX_PAGES: Int = 10_000
 
   private static let log = Log.forCategory("ImmichAPI")
   private let client: Client
+  private let httpClient: HTTPClient
   private let retryAttempts: Int
 
   init(_ config: ImmichApiConfig) throws {
@@ -147,10 +155,23 @@ final public class ImmichApiClient: Sendable {
     }
     retryAttempts = max(1, config.retryAttempts)
 
+    var httpConfig = HTTPClient.Configuration.singletonConfiguration
+    httpConfig.timeout.connect = timeAmount(from: config.connectTimeout)
+    let idleTimeout = config.connectionIdleTimeout.map { timeAmount(from: $0) }
+    httpConfig.timeout.read = idleTimeout
+    httpConfig.timeout.write = idleTimeout
+    httpConfig.connectionPool.concurrentHTTP1ConnectionsPerHostSoftLimit = max(1, config.maxConcurrentRequests)
+    let httpClient = HTTPClient(
+      eventLoopGroup: HTTPClient.defaultEventLoopGroup,
+      configuration: httpConfig
+    )
+    self.httpClient = httpClient
+
     let limiter = AsyncSemaphore(maxConcurrentTasks: max(1, config.maxConcurrentRequests))
+    let deadline = config.requestTimeout.map { timeAmount(from: $0) } ?? .nanoseconds(.max)
     let transportConfig = AsyncHTTPClientTransport.Configuration(
-      client: .shared,
-      timeout: timeAmount(from: config.requestTimeout)
+      client: httpClient,
+      timeout: deadline
     )
     self.client = Client(
       serverURL: baseURL,
@@ -161,6 +182,14 @@ final public class ImmichApiClient: Sendable {
         ApiKeyMiddleware(apiKey: config.apiKey),
       ]
     )
+  }
+
+  func shutdown() async {
+    do {
+      try await httpClient.shutdown().get()
+    } catch {
+      Self.log.warning("HTTP client shutdown failed", cause: error)
+    }
   }
 
   private func undocumentedToError(status: Int, result: UndocumentedPayload) async throws -> ImmichApiError {
@@ -185,7 +214,12 @@ final public class ImmichApiClient: Sendable {
 
   private func canRetryAfterClientFailure(_ error: Error) -> Bool {
     if error is TimeoutError { return true }
-    if let httpErr = error as? HTTPClientError, httpErr == .deadlineExceeded { return true }
+    if let httpErr = error as? HTTPClientError, RETRYABLE_HTTP_CLIENT_ERRORS.contains(httpErr) { return true }
+    if let streamClosed = error as? NIOHTTP2Errors.StreamClosed, 
+      RETRYABLE_HTTP2_ERROR_CODES.contains(streamClosed.errorCode)
+    {
+      return true
+    }
     if error is CancellationError { return false }
     if error is DecodingError { return false }
     if let immich = error as? ImmichApiError, case .unknown(let status, _) = immich {

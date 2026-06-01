@@ -184,6 +184,18 @@ public actor AsyncSemaphore {
   }
 }
 
+// Helper method to perform defer-like tasks in an async context.
+func withAsyncCleanup<T>(_ cleanup: () async -> Void, _ body: () async throws -> T) async rethrows -> T {
+  do {
+    let result = try await body()
+    await cleanup()
+    return result
+  } catch {
+    await cleanup()
+    throw error
+  }
+}
+
 /// Formats a duration in seconds as `HH:MM:SS.ffffff`, the format Immich expects for the
 /// upload `duration` form field. Negative inputs are clamped to zero.
 func formatImmichDuration(_ seconds: TimeInterval) -> String {
