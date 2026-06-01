@@ -3,6 +3,7 @@ import AsyncHTTPClient
 import Foundation
 import HTTPTypes
 import NIOCore
+import NIOHTTP2
 import OpenAPIAsyncHTTPClient
 import OpenAPIRuntime
 import OpenAPIURLSession
@@ -127,6 +128,12 @@ private func timeAmount(from duration: Duration) -> TimeAmount {
   return .nanoseconds(sum)
 }
 
+// Retriable Http Error Codes
+private let RETRYABLE_HTTP_CLIENT_ERRORS: [HTTPClientError] = [.deadlineExceeded, .readTimeout, .writeTimeout]
+private let RETRYABLE_HTTP2_ERROR_CODES: [HTTP2ErrorCode] = [
+  .cancel, .refusedStream, .enhanceYourCalm, .internalError, .connectError,
+]
+
 final public class ImmichApiClient: Sendable {
   let SEARCH_MAX_SIZE: Double = 1_000
   let SEARCH_MAX_PAGES: Int = 10_000
@@ -207,7 +214,12 @@ final public class ImmichApiClient: Sendable {
 
   private func canRetryAfterClientFailure(_ error: Error) -> Bool {
     if error is TimeoutError { return true }
-    if let httpErr = error as? HTTPClientError, [.deadlineExceeded, .readTimeout, .writeTimeout].contains(httpErr) { return true }
+    if let httpErr = error as? HTTPClientError, RETRYABLE_HTTP_CLIENT_ERRORS.contains(httpErr) { return true }
+    if let streamClosed = error as? NIOHTTP2Errors.StreamClosed, 
+      RETRYABLE_HTTP2_ERROR_CODES.contains(streamClosed.errorCode)
+    {
+      return true
+    }
     if error is CancellationError { return false }
     if error is DecodingError { return false }
     if let immich = error as? ImmichApiError, case .unknown(let status, _) = immich {

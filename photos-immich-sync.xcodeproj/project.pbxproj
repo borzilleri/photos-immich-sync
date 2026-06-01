@@ -15,6 +15,7 @@
 		AB98CBF92F4EBD6000B66464 /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = AB98CBF82F4EBD6000B66464 /* OpenAPIRuntime */; };
 		AB98CBFC2F4EBD7000B66464 /* OpenAPIURLSession in Frameworks */ = {isa = PBXBuildFile; productRef = AB98CBFB2F4EBD7000B66464 /* OpenAPIURLSession */; };
 		AB99YAMS2F5E00030096251A /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = AB99YAMS2F5E000200962519 /* Yams */; };
+		AB99NIO22F5E000300962532 /* NIOHTTP2 in Frameworks */ = {isa = PBXBuildFile; productRef = AB99NIO22F5E000200962531 /* NIOHTTP2 */; };
 		ABCAFE022F4D389300B66464 /* Version.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCAFE032F4D389300B66464 /* Version.swift */; };
 /* End PBXBuildFile section */
 
@@ -72,6 +73,7 @@
 				AB98CB872F4D390900B66464 /* Photos.framework in Frameworks */,
 				AB83C5032F56985400962517 /* OpenAPIAsyncHTTPClient in Frameworks */,
 				AB99YAMS2F5E00030096251A /* Yams in Frameworks */,
+				AB99NIO22F5E000300962532 /* NIOHTTP2 in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -141,6 +143,7 @@
 				AB83C5022F56985400962517 /* OpenAPIAsyncHTTPClient */,
 				AB99YAMS2F5E000200962519 /* Yams */,
 				AB69EBAA2F66573C0007E41C /* Codextended */,
+				AB99NIO22F5E000200962531 /* NIOHTTP2 */,
 			);
 			productName = "photos-immich-sync";
 			productReference = AB98CB7B2F4D389300B66464 /* photos-immich-sync */;
@@ -179,6 +182,7 @@
 				AB83C5012F56985400962517 /* XCRemoteSwiftPackageReference "swift-openapi-async-http-client" */,
 				AB99YAMS2F5E000100962518 /* XCRemoteSwiftPackageReference "Yams" */,
 				AB69EBA92F66573C0007E41C /* XCRemoteSwiftPackageReference "Codextended" */,
+				AB99NIO22F5E000100962530 /* XCRemoteSwiftPackageReference "swift-nio-http2" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = AB98CB7C2F4D389300B66464 /* Products */;
@@ -521,6 +525,14 @@
 				minimumVersion = 5.0.0;
 			};
 		};
+		AB99NIO22F5E000100962530 /* XCRemoteSwiftPackageReference "swift-nio-http2" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-nio-http2.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.43.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -563,6 +575,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = AB99YAMS2F5E000100962518 /* XCRemoteSwiftPackageReference "Yams" */;
 			productName = Yams;
+		};
+		AB99NIO22F5E000200962531 /* NIOHTTP2 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AB99NIO22F5E000100962530 /* XCRemoteSwiftPackageReference "swift-nio-http2" */;
+			productName = NIOHTTP2;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
