@@ -7,6 +7,7 @@ let DEFAULT_CONFIG_PATH = FileManager.default.homeDirectoryForCurrentUser
 
 
 struct AppConfig: Codable {
+  var enableUpdateCheck: Bool
   var immich: ImmichConfig
   var photos: PhotosConfig
 
@@ -18,6 +19,7 @@ struct AppConfig: Codable {
     photos = try container.decodeIfPresent(PhotosConfig.self, forKey: .photos) ?? PhotosConfig()
 
     exportOnly = try container.decodeIfPresent(Bool.self, forKey: .exportOnly) ?? false
+    enableUpdateCheck = try container.decodeIfPresent(Bool.self, forKey: .enableUpdateCheck) ?? true
   }
 
   static func load(fromFile path: String) throws -> AppConfig {

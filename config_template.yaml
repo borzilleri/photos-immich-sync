@@ -9,6 +9,14 @@
 # parser, https://github.com/jpsim/Yams, blame them).
 
 #####################################
+# General Settings
+#
+# Enable Update Check
+# On startup, queries GitHub for the latest release, displays a message if a 
+# newer version is available. Set to false to disable this check.
+enableUpdateCheck: true
+
+#####################################
 # Immich API Client Settings
 #
 immich:
