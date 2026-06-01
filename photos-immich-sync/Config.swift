@@ -59,19 +59,32 @@ struct ImmichConfig: Codable {
   }
 }
 
-private let IMMICH_CLIENT_CONCURRENT_REQUESTS: Int = 500
+private func validateInt(name: String, codingPath: [any CodingKey], value: Int, min: Int?) throws {
+  if let min, value < min {
+    throw DecodingError.dataCorrupted(
+      .init(
+        codingPath: codingPath,
+        debugDescription: "\(name) must be at least \(min), was \(value)"))
+  }
+}
+
+private let IMMICH_CLIENT_CONCURRENT_REQUESTS: Int = 32
 private let IMMICH_CLIENT_RETRY_ATTEMPTS = 3
-private let IMMICH_CLIENT_REQUEST_TIMEOUT_SECONDS: Int = 120
+private let IMMICH_CLIENT_REQUEST_TIMEOUT_SECONDS: Int = 0
+private let IMMICH_CLIENT_CONNECT_TIMEOUT_SECONDS: Int = 30
+private let IMMICH_CLIENT_IDLE_TIMEOUT_SECONDS: Int = 300
 struct ImmichApiConfig: Codable {
   var url: String
   var apiKey: String
-  /// Governs concurrent requsets to Immich API.
   var maxConcurrentRequests: Int
   var retryAttempts: Int
   var requestTimeoutSeconds: Int
+  var connectTimeoutSeconds: Int
+  var connectionIdleTimeoutSeconds: Int
 
-  /// Convenience for callers that need a `Duration`.
-  var requestTimeout: Duration { .seconds(requestTimeoutSeconds) }
+  var requestTimeout: Duration? { requestTimeoutSeconds == 0 ? nil : .seconds(requestTimeoutSeconds) }
+  var connectTimeout: Duration { .seconds(connectTimeoutSeconds) }
+  var connectionIdleTimeout: Duration? { connectionIdleTimeoutSeconds == 0 ? nil : .seconds(connectionIdleTimeoutSeconds) }
 
   public init(from decoder: any Decoder) throws {
     let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -82,39 +95,15 @@ struct ImmichApiConfig: Codable {
     retryAttempts = try c.decodeIfPresent(Int.self, forKey: .retryAttempts) ?? IMMICH_CLIENT_RETRY_ATTEMPTS
     requestTimeoutSeconds =
       try c.decodeIfPresent(Int.self, forKey: .requestTimeoutSeconds) ?? IMMICH_CLIENT_REQUEST_TIMEOUT_SECONDS
-    try Self.validate(
-      retryAttempts: retryAttempts,
-      maxConcurrentRequests: maxConcurrentRequests,
-      requestTimeoutSeconds: requestTimeoutSeconds,
-      codingPath: c.codingPath)
-  }
-
-  private static func validate(
-    retryAttempts: Int,
-    maxConcurrentRequests: Int,
-    requestTimeoutSeconds: Int,
-    codingPath: [any CodingKey]
-  ) throws {
-    if retryAttempts < 1 {
-      throw DecodingError.dataCorrupted(
-        .init(
-          codingPath: codingPath,
-          debugDescription: "immich.client.retryAttempts must be at least 1, got \(retryAttempts)"))
-    }
-    if maxConcurrentRequests < 1 {
-      throw DecodingError.dataCorrupted(
-        .init(
-          codingPath: codingPath,
-          debugDescription:
-            "immich.client.maxConcurrentRequests must be at least 1, got \(maxConcurrentRequests)"))
-    }
-    if requestTimeoutSeconds < 1 {
-      throw DecodingError.dataCorrupted(
-        .init(
-          codingPath: codingPath,
-          debugDescription:
-            "immich.client.requestTimeoutSeconds must be at least 1, got \(requestTimeoutSeconds)"))
-    }
+    connectTimeoutSeconds =
+      try c.decodeIfPresent(Int.self, forKey: .connectTimeoutSeconds) ?? IMMICH_CLIENT_CONNECT_TIMEOUT_SECONDS
+    connectionIdleTimeoutSeconds =
+      try c.decodeIfPresent(Int.self, forKey: .connectionIdleTimeoutSeconds) ?? IMMICH_CLIENT_IDLE_TIMEOUT_SECONDS
+    try validateInt(name: "immich.client.retryAttempts", codingPath: c.codingPath, value: retryAttempts, min: 1)
+    try validateInt(name: "immich.client.maxConcurrentRequests", codingPath: c.codingPath, value: maxConcurrentRequests, min: 1)
+    try validateInt(name: "immich.client.requestTimeoutSeconds", codingPath: c.codingPath, value: requestTimeoutSeconds, min: 0)
+    try validateInt(name: "immich.client.connectTimeoutSeconds", codingPath: c.codingPath, value: connectTimeoutSeconds, min: 1)
+    try validateInt(name: "immich.client.connectionIdleTimeoutSeconds", codingPath: c.codingPath, value: connectionIdleTimeoutSeconds, min: 0)
   }
 }
 
