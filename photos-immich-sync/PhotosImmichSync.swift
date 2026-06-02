@@ -173,17 +173,14 @@ private func runSync(
     try PhotosCore.checkAuthorization(requireAuth: true, requestAuth: sync.requestAuth)
     let services = try makeSyncStack(config: config, fileService: fileService)
 
-    // TODO: Make this more robust, rather than specific to the immich client.
-    try await withAsyncCleanup({ await services.immichClient.shutdown() }) {
-      let changeTokenCandidate = try await perform(config, services)
+    let changeTokenCandidate = try await perform(config, services)
 
-      let hasFatalErrors = Log.summary().hasErrors
-      if changeTokenCandidate && !hasFatalErrors {
-        try fileService.writeChangeToken(currentChangeToken)
-      }
-      if hasFatalErrors {
-        throw ExitCode.failure
-      }
+    let hasFatalErrors = Log.summary().hasErrors
+    if changeTokenCandidate && !hasFatalErrors {
+      try fileService.writeChangeToken(currentChangeToken)
+    }
+    if hasFatalErrors {
+      throw ExitCode.failure
     }
   } catch let exit as ExitCode {
     throw exit
