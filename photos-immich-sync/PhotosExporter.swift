@@ -147,7 +147,7 @@ public struct PhotosExporter {
     }
 
     let bundles = await assembleBundlesFromAssets(assets: changes.changedAssets, infos: assetDbMetadata)
-    let albums = fetchChangedAlbums(changes.changedAlbumIds)
+    let albums = fetchChangedAlbums(changes.changedAlbumIds, config: config)
 
     Self.log.progress(
       """
@@ -181,7 +181,7 @@ public struct PhotosExporter {
     }
 
     let bundles = await assembleBundlesFromAssets(assets: assets, infos: assetDbMetadata)
-    let albums = fetchAllAlbums()
+    let albums = fetchAllAlbums(config: config)
 
     Self.log.progress(
       """
@@ -447,34 +447,34 @@ public struct PhotosExporter {
     return nil
   }
 
+  private func shouldExport(_ asset: PHAsset, config: PhotosExportConfig) -> Bool {
+    guard asset.burstIdentifier != nil else { return true }
+    return asset.burstSelectionTypes == .userPick
+      || config.includeBursts == .all
+      || (config.includeBursts == .selected && asset.burstSelectionTypes == .autoPick)
+  }
+
+  private func buildFetchOptions(config: PhotosExportConfig) -> PHFetchOptions {
+    let options = PHFetchOptions()
+    options.sortDescriptors = [
+      NSSortDescriptor(key: "creationDate", ascending: config.oldestFirst)
+    ]
+    options.includeHiddenAssets = config.includeHidden
+    options.includeAllBurstAssets = config.includeBursts != .none
+    return options
+  }
+
   func fetchAssets(config: PhotosExportConfig) async -> [PHAsset] {
     Self.log.progress("Fetching Assets for export.")
-    let fetchOptions = PHFetchOptions()
+    let fetchOptions = buildFetchOptions(config: config)
     if let limit = config.fetchLimit {
       fetchOptions.fetchLimit = limit
     }
-    fetchOptions.sortDescriptors = [
-      NSSortDescriptor(key: "creationDate", ascending: config.oldestFirst)
-    ]
-    fetchOptions.includeHiddenAssets = config.includeHidden
-    fetchOptions.includeAllBurstAssets = config.includeBursts != .none
     let fetchResult = PHAsset.fetchAssets(with: fetchOptions)
     var assets = [PHAsset]()
     assets.reserveCapacity(fetchResult.count)
     fetchResult.enumerateObjects { asset, _, _ in
-      if asset.burstIdentifier != nil {
-        /* Burts assets get included if:
-         * - the asset is user picked
-         * - the asset is auto-picked & we're including selected assets.
-         * - we're including ALL burst assets
-         */
-        if asset.burstSelectionTypes == .userPick
-          || config.includeBursts == .all
-          || (config.includeBursts == .selected && asset.burstSelectionTypes == .autoPick)
-        {
-          assets.append(asset)
-        }
-      } else {
+      if shouldExport(asset, config: config) {
         assets.append(asset)
       }
     }
@@ -483,7 +483,7 @@ public struct PhotosExporter {
     return assets
   }
 
-  func fetchChangedAlbums(_ albumIds: [String]) -> [PhotosAlbum] {
+  func fetchChangedAlbums(_ albumIds: [String], config: PhotosExportConfig) -> [PhotosAlbum] {
     Self.log.progress("Fetching Albums and membership")
 
     var albums: [PHAssetCollection] = []
@@ -505,11 +505,11 @@ public struct PhotosExporter {
         }
       }
 
-    let albumMap: [String:PhotosAlbum] = Dictionary(
-      uniqueKeysWithValues: albums.map(exportAlbumWithAssets).map({($0.localIdentifier, $0)})
+    let albumMap: [String: PhotosAlbum] = Dictionary(
+      uniqueKeysWithValues: albums.map({ exportAlbumWithAssets($0, config: config) }).map({ ($0.localIdentifier, $0) })
     )
-    let nameChangeOnlyAlbums = folders.flatMap({exportFolder($0, path: [])})
-      .filter({albumMap[$0.localIdentifier] == nil})
+    let nameChangeOnlyAlbums = folders.flatMap({ exportFolder($0, path: []) })
+      .filter({ albumMap[$0.localIdentifier] == nil })
 
     Self.log.progress("Album export complete")
     return albumMap.values + nameChangeOnlyAlbums
@@ -538,21 +538,24 @@ public struct PhotosExporter {
     return albums
   }
 
-  func fetchAllAlbums() -> [PhotosAlbum] {
+  func fetchAllAlbums(config: PhotosExportConfig) -> [PhotosAlbum] {
     Self.log.progress("Fetching Albums and membership")
     var albums = [PhotosAlbum]()
     PHAssetCollection.fetchAssetCollections(with: .album, subtype: .albumRegular, options: nil).enumerateObjects {
       album, _, _ in
-      albums.append(exportAlbumWithAssets(album))
+      albums.append(exportAlbumWithAssets(album, config: config))
     }
     Self.log.progress("Album export complete")
     return albums
   }
 
-  func exportAlbumWithAssets(_ album: PHAssetCollection) -> PhotosAlbum {
+  func exportAlbumWithAssets(_ album: PHAssetCollection, config: PhotosExportConfig) -> PhotosAlbum {
     var albumAssetIds: [String] = []
-    PHAsset.fetchAssets(in: album, options: nil).enumerateObjects { asset, _, _ in
-      albumAssetIds.append(asset.localIdentifier)
+    let fetchOptions = buildFetchOptions(config: config)
+    PHAsset.fetchAssets(in: album, options: fetchOptions).enumerateObjects { asset, _, _ in
+      if shouldExport(asset, config: config) {
+        albumAssetIds.append(asset.localIdentifier)
+      }
     }
     let album = PhotosAlbum(
       localIdentifier: album.localIdentifier,
@@ -628,15 +631,15 @@ public struct PhotosExporter {
       return nil
     }
 
-    let fetchOptions = PHFetchOptions()
-    fetchOptions.includeHiddenAssets = config.includeHidden
-    fetchOptions.includeAllBurstAssets = config.includeBursts != .none
 
+    let fetchOptions = buildFetchOptions(config: config)
     var changedAssets: [PHAsset] = []
     PHAsset.fetchAssets(
       withLocalIdentifiers: Array(assetIdsChanged.subtracting(assetIdsDeleted)), options: fetchOptions
     ).enumerateObjects { asset, _, _ in
-      changedAssets.append(asset)
+      if shouldExport(asset, config: config) {
+        changedAssets.append(asset)
+      }
     }
 
     await localIdMap.add(localIdentifiers: changedAssets.map(\.localIdentifier))
