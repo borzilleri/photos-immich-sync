@@ -14,8 +14,8 @@
 		AB98CB8C2F4D3B9F00B66464 /* ArgumentParser in Frameworks */ = {isa = PBXBuildFile; productRef = AB98CB8B2F4D3B9F00B66464 /* ArgumentParser */; };
 		AB98CBF92F4EBD6000B66464 /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = AB98CBF82F4EBD6000B66464 /* OpenAPIRuntime */; };
 		AB98CBFC2F4EBD7000B66464 /* OpenAPIURLSession in Frameworks */ = {isa = PBXBuildFile; productRef = AB98CBFB2F4EBD7000B66464 /* OpenAPIURLSession */; };
-		AB99YAMS2F5E00030096251A /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = AB99YAMS2F5E000200962519 /* Yams */; };
 		AB99NIO22F5E000300962532 /* NIOHTTP2 in Frameworks */ = {isa = PBXBuildFile; productRef = AB99NIO22F5E000200962531 /* NIOHTTP2 */; };
+		AB99YAMS2F5E00030096251A /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = AB99YAMS2F5E000200962519 /* Yams */; };
 		ABCAFE022F4D389300B66464 /* Version.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCAFE032F4D389300B66464 /* Version.swift */; };
 /* End PBXBuildFile section */
 
@@ -517,20 +517,20 @@
 				minimumVersion = 1.2.0;
 			};
 		};
-		AB99YAMS2F5E000100962518 /* XCRemoteSwiftPackageReference "Yams" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/jpsim/Yams";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 5.0.0;
-			};
-		};
 		AB99NIO22F5E000100962530 /* XCRemoteSwiftPackageReference "swift-nio-http2" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/apple/swift-nio-http2.git";
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 1.43.0;
+			};
+		};
+		AB99YAMS2F5E000100962518 /* XCRemoteSwiftPackageReference "Yams" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/jpsim/Yams";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.0.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -571,15 +571,15 @@
 			package = AB98CBF62F4EBD2900B66464 /* XCRemoteSwiftPackageReference "swift-openapi-generator" */;
 			productName = "plugin:OpenAPIGenerator";
 		};
-		AB99YAMS2F5E000200962519 /* Yams */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = AB99YAMS2F5E000100962518 /* XCRemoteSwiftPackageReference "Yams" */;
-			productName = Yams;
-		};
 		AB99NIO22F5E000200962531 /* NIOHTTP2 */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = AB99NIO22F5E000100962530 /* XCRemoteSwiftPackageReference "swift-nio-http2" */;
 			productName = NIOHTTP2;
+		};
+		AB99YAMS2F5E000200962519 /* Yams */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AB99YAMS2F5E000100962518 /* XCRemoteSwiftPackageReference "Yams" */;
+			productName = Yams;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

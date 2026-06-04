@@ -2,6 +2,7 @@ import ArgumentParser
 import AsyncHTTPClient
 import Foundation
 import HTTPTypes
+import NIOConcurrencyHelpers
 import NIOCore
 import NIOHTTP2
 import OpenAPIAsyncHTTPClient
@@ -134,13 +135,18 @@ private let RETRYABLE_HTTP2_ERROR_CODES: [HTTP2ErrorCode] = [
   .cancel, .refusedStream, .enhanceYourCalm, .internalError, .connectError,
 ]
 
+// Global Mutable State
+// we want this to die when the app exits, not when the client de-inits
+// This probably avoids some issues resulting in a seg-fault.
+// The NIOLockedBox just lets us mutate it cleanly
+private let retainedHTTPClients = NIOLockedValueBox<[HTTPClient]>([])
+
 final public class ImmichApiClient: Sendable {
   let SEARCH_MAX_SIZE: Double = 1_000
   let SEARCH_MAX_PAGES: Int = 10_000
 
   private static let log = Log.forCategory("ImmichAPI")
   private let client: Client
-  private let httpClient: HTTPClient
   private let retryAttempts: Int
 
   init(_ config: ImmichApiConfig) throws {
@@ -165,7 +171,8 @@ final public class ImmichApiClient: Sendable {
       eventLoopGroup: HTTPClient.defaultEventLoopGroup,
       configuration: httpConfig
     )
-    self.httpClient = httpClient
+    // Retain for the process lifetime so it is never shut down or deinited (see note above).
+    retainedHTTPClients.withLockedValue { $0.append(httpClient) }
 
     let limiter = AsyncSemaphore(maxConcurrentTasks: max(1, config.maxConcurrentRequests))
     let deadline = config.requestTimeout.map { timeAmount(from: $0) } ?? .nanoseconds(.max)
@@ -182,14 +189,6 @@ final public class ImmichApiClient: Sendable {
         ApiKeyMiddleware(apiKey: config.apiKey),
       ]
     )
-  }
-
-  func shutdown() async {
-    do {
-      try await httpClient.shutdown().get()
-    } catch {
-      Self.log.warning("HTTP client shutdown failed", cause: error)
-    }
   }
 
   private func undocumentedToError(status: Int, result: UndocumentedPayload) async throws -> ImmichApiError {
@@ -213,6 +212,11 @@ final public class ImmichApiClient: Sendable {
   }
 
   private func canRetryAfterClientFailure(_ error: Error) -> Bool {
+    var error = error
+    // Unwrap OpenAPI Client Errors into their underlying error.
+    while let clientError = error as? ClientError {
+      error = clientError.underlyingError
+    }
     if error is TimeoutError { return true }
     if let httpErr = error as? HTTPClientError, RETRYABLE_HTTP_CLIENT_ERRORS.contains(httpErr) { return true }
     if let streamClosed = error as? NIOHTTP2Errors.StreamClosed, 

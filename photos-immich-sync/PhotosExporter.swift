@@ -487,23 +487,36 @@ public struct PhotosExporter {
     Self.log.progress("Fetching Albums and membership")
 
     var albums: [PHAssetCollection] = []
-    var folders: [PHCollectionList] = []
+    var folderIds: [String] = []
     PHAssetCollection
       .fetchAssetCollections(withLocalIdentifiers: albumIds, options: nil)
       .enumerateObjects {
         item, _, _ in
-        let collection = item as PHCollection
-        switch collection {
-        case let album as PHAssetCollection:
-          if album.assetCollectionSubtype == .albumRegular {
-            albums.append(album)
+        // PhotoKit can return PHCollectionLists in this response. We can't use the more swift-like `as` casting
+        // to discriminate between them and actual PHAssetCollection, because the Swift Compiler here is "clever".
+        // It knows that our casting nonsense is just sugar around the statically typed response from the fetch,
+        // so it optimizes it away. Fuck you, release-mode optimizations, fuck you.
+        // This obj-c based call (isKind) is dynamic and can't be optimized away.
+        // Still, because the underlying type _is_ statically typed, we need to just record the id of folders and
+        // fetch them later with a proper type.
+        if item.isKind(of: PHAssetCollection.self) {
+          if item.assetCollectionSubtype == .albumRegular {
+            albums.append(item)
           }
-        case let folder as PHCollectionList:
-          folders.append(folder)
-        default:
-          Self.log.debug("Ignoring unknown collection: \(collection.localizedTitle ?? "?")")
+        } else if item.isKind(of: PHCollectionList.self) {
+          folderIds.append(item.localIdentifier)
+        } else {
+          Self.log.debug("Ignoring unknown collection: \(item.localizedTitle ?? "?")")
         }
       }
+
+    // Fetch our folders explicitly, because we need them to return in a properly typed response.
+    var folders: [PHCollectionList] = []
+    if !folderIds.isEmpty {
+      PHCollectionList
+        .fetchCollectionLists(withLocalIdentifiers: folderIds, options: nil)
+        .enumerateObjects { folder, _, _ in folders.append(folder) }
+    }
 
     let albumMap: [String: PhotosAlbum] = Dictionary(
       uniqueKeysWithValues: albums.map({ exportAlbumWithAssets($0, config: config) }).map({ ($0.localIdentifier, $0) })
@@ -543,6 +556,9 @@ public struct PhotosExporter {
     var albums = [PhotosAlbum]()
     PHAssetCollection.fetchAssetCollections(with: .album, subtype: .albumRegular, options: nil).enumerateObjects {
       album, _, _ in
+      // This *shouldn't* be necessary. But, because of the crash found in fetchChangedAlbums, it felt prudent to
+      // put a little extra guard here (pun intended).
+      guard album.isKind(of: PHAssetCollection.self) else { return }
       albums.append(exportAlbumWithAssets(album, config: config))
     }
     Self.log.progress("Album export complete")
