@@ -521,7 +521,11 @@ public struct PhotosExporter {
     let albumMap: [String: PhotosAlbum] = Dictionary(
       uniqueKeysWithValues: albums.map({ exportAlbumWithAssets($0, config: config) }).map({ ($0.localIdentifier, $0) })
     )
-    let nameChangeOnlyAlbums = folders.flatMap({ exportFolder($0, path: []) })
+    let nameChangeOnlyAlbums = folders.flatMap({ folder in
+      // Start with a base path of this folder's ancesotors, in case we're processing a nested folder.
+      let ancestors = Array(fetchCollectionPath(for: folder).reversed().dropLast())
+      return exportFolder(folder, path: ancestors)
+    })
       .filter({ albumMap[$0.localIdentifier] == nil })
 
     Self.log.progress("Album export complete")
@@ -584,12 +588,18 @@ public struct PhotosExporter {
   }
 
   func fetchCollectionPath(for collection: PHCollection) -> [String] {
-    let result = PHCollectionList.fetchCollectionListsContaining(collection, options: nil)
-    var out = [collection.localizedTitle ?? "Unknown"]
-    if let parent = result.firstObject {
-      out.append(contentsOf: fetchCollectionPath(for: parent))
+    var path = [collection.localizedTitle ?? "Unknown"]
+    var current: PHCollection = collection
+    while let parent = PHCollectionList.fetchCollectionListsContaining(current, options: nil).firstObject {
+      // All user albums are in a "hidden" root collection list ("Albums"), detect this by seeing if this object
+      // has no parent. Then skip it, as we don't want to include it in the path.
+      guard PHCollectionList.fetchCollectionListsContaining(parent, options: nil).firstObject != nil else {
+        break
+      }
+      path.append(parent.localizedTitle ?? "Unknown")
+      current = parent
     }
-    return out
+    return path
   }
 
   private func fetchChanges(_ token: PHPersistentChangeToken, config: PhotosExportConfig) async -> DeltaChanges? {
