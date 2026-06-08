@@ -1301,15 +1301,14 @@ public class ImmichService {
     }
 
     // Resolve our deviceAssetIds into Immich Asset Ids.
-    var immichIdsToAdd: [String] = []
-    await withDiscardingTaskGroup { group in
+    let immichIdsToAdd = await withTaskGroup(of: [String].self) { group in
       for deviceAssetId in photosAlbum.assetIds {
         group.addTask {
           do {
             if let resolved = try await self.resolvePrimaryStackedIds(
               deviceAssetId: deviceAssetId, primaryOnly: self.config.albums.stackPrimaryOnly)
             {
-              immichIdsToAdd.append(contentsOf: resolved)
+              return resolved
             } else {
               Self.log.warning(
                 "Unable to find Immich asset for deviceAssetId",
@@ -1333,8 +1332,10 @@ public class ImmichService {
               cause: error
             )
           }
+          return []
         }
       }
+      return await group.reduce(into: [String]()) { $0.append(contentsOf: $1) }
     }
 
     var numAssetsAdded = 0
