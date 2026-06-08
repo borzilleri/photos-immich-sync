@@ -1274,7 +1274,6 @@ public class ImmichService {
           cause: error
         )
       }
-      return
     }
     // Be sure we're not JUST changing the album name
     guard !photosAlbum.nameChangeOnly else {
