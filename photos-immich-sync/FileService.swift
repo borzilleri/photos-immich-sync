@@ -471,7 +471,7 @@ public struct FileService {
 
   func writeChangeToken(_ token: PHPersistentChangeToken) throws {
     let tokenData = try NSKeyedArchiver.archivedData(withRootObject: token, requiringSecureCoding: true)
-    try tokenData.write(to: self.changeTokenFile)
+    try tokenData.write(to: self.changeTokenFile, options: .atomic)
   }
 
   func loadChangeToken() throws -> PHPersistentChangeToken? {

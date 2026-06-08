@@ -321,8 +321,12 @@ public struct PhotosExporter {
       let walFile = dbFile + "-wal"
 
       try fs.copyFile(fromPath: photosDbPath, toPath: dbFile)
-      try fs.copyFile(fromPath: photosShmPath, toPath: shmFile)
-      try fs.copyFile(fromPath: photosWalPath, toPath: walFile)
+      // Don't attempt to copy shm/wal files if they don't exist.
+      for (src, dst) in [(photosShmPath, shmFile), (photosWalPath, walFile)] {
+        if FileManager.default.fileExists(atPath: src) {
+          try fs.copyFile(fromPath: src, toPath: dst)
+        }
+      }
 
       return dbFile
     } catch {
