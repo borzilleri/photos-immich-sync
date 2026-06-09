@@ -841,10 +841,15 @@ public class ImmichService {
     -> [Components.Schemas.AssetMediaCreateDto]
   {
     var data: [Components.Schemas.AssetMediaCreateDto] = []
-    // Asset File Data
+    // Asset File Data, streamed in chunks with an AsyncStream
     do {
+      let size = try fs.fileSize(at: file.url)
+      let body = OpenAPIRuntime.HTTPBody(
+        FileByteSequence(url: file.url),
+        length: .known(size),
+        iterationBehavior: .multiple)
       data.append(
-        .assetData(.init(payload: .init(body: .init(try Data(contentsOf: file.url))), filename: file.originalFileName)))
+        .assetData(.init(payload: .init(body: body), filename: file.originalFileName)))
     } catch {
       throw error
     }

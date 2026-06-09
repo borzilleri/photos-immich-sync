@@ -469,6 +469,12 @@ public struct FileService {
     try FileManager.default.copyItem(atPath: sourcePath, toPath: targetPath)
   }
 
+  /// File size in bytes; throws if the file is missing or unreadable.
+  func fileSize(at url: URL) throws -> Int64 {
+    let values = try url.resourceValues(forKeys: [.fileSizeKey])
+    return Int64(values.fileSize ?? 0)
+  }
+
   func writeChangeToken(_ token: PHPersistentChangeToken) throws {
     let tokenData = try NSKeyedArchiver.archivedData(withRootObject: token, requiringSecureCoding: true)
     try tokenData.write(to: self.changeTokenFile, options: .atomic)
@@ -485,5 +491,51 @@ public struct FileService {
     } catch {
       throw ChangeTokenError.decode(underlying: error)
     }
+  }
+}
+
+/// Async Byte stream wrapped around an on-disk file (represented by a URL) to provide chunked streaming of a file.
+/// `makeAsyncIterator()` generates a fresh filehandle, so this can be iterated over multiple times.
+/// (required for retries on HTTP requests)
+struct FileByteSequence: AsyncSequence, Sendable {
+  typealias Element = ArraySlice<UInt8>
+  let url: URL
+  let chunkSize: Int
+
+  init(url: URL, chunkSize: Int = 64 * 1024) {
+    self.url = url
+    self.chunkSize = chunkSize
+  }
+
+  func makeAsyncIterator() -> Iterator { Iterator(url: url, chunkSize: chunkSize) }
+
+  final class Iterator: AsyncIteratorProtocol {
+    private let url: URL
+    private let chunkSize: Int
+    private var handle: FileHandle?
+    private var started = false
+
+    init(url: URL, chunkSize: Int) {
+      self.url = url
+      self.chunkSize = chunkSize
+    }
+
+    func next() async throws -> ArraySlice<UInt8>? {
+      try Task.checkCancellation()
+      if !started {
+        handle = try FileHandle(forReadingFrom: url)
+        started = true
+      }
+      guard let handle else { return nil }
+      let data = try handle.read(upToCount: chunkSize) ?? Data()
+      if data.isEmpty {
+        try? handle.close()
+        self.handle = nil
+        return nil
+      }
+      return ArraySlice(data)
+    }
+
+    deinit { try? handle?.close() }  // closes the handle if a retry abandons this iterator
   }
 }
