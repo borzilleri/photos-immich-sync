@@ -41,8 +41,9 @@ should run this request-auth command first to grant library access.
 photos-immich-sync request-auth
 ```
 
-Sync subcommands accept a `--request-auth` flag to prompt for auth inline
-with a sync run, but that does not work for scheduled runs.
+If your Immich server is on your local network, macOS will also prompt for 
+"Local Network" access. `request-auth` surfaces and waits on that prompt
+as well, so both permissions can be granted up front.
 
 ### Full Sync
 

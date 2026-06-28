@@ -36,14 +36,18 @@ extension PhotosImmichSync {
     )
 
     @OptionGroup var global: GlobalOptions
+    @Option(help: "Path to configuration file.") var configFile: String = DEFAULT_CONFIG_PATH
 
     func run() async throws {
       Log.configure(verbosity: Verbosity.fromFlags(quiet: global.quiet, verbose: global.verbose))
       let log = Log.forCategory(APP_NAME)
-      let updateCheckEnabled = (try? AppConfig.load(fromFile: DEFAULT_CONFIG_PATH))?.enableUpdateCheck ?? true
-      await runUpdateCheck(enabled: updateCheckEnabled, log: log)
       do {
+        let config = try AppConfig.load(fromFile: configFile)
+        await runUpdateCheck(enabled: config.enableUpdateCheck, log: log)
+        // Check & Prompt for Photos Library Access.
         try PhotosCore.checkAuthorization(requireAuth: false, requestAuth: true)
+        // Check & Prompt for Local Network Access, if needed.
+        await NetworkPreflight.warmUpLocalNetwork(serverURL: config.immich.api.url)
         if Log.summary().hasErrors {
           throw ExitCode.failure
         }
@@ -172,6 +176,11 @@ private func runSync(
 
     try PhotosCore.checkAuthorization(requireAuth: true, requestAuth: sync.requestAuth)
     let services = try makeSyncStack(config: config, fileService: fileService)
+
+    // Block on the macOS Local Network prompt before any HTTP traffic. On a fresh
+    // install the first connection that triggers the prompt is dropped and times out;
+    // this waits until access is granted so the requests below succeed on the first run.
+    await NetworkPreflight.warmUpLocalNetwork(serverURL: config.immich.api.url)
 
     let changeTokenCandidate = try await perform(config, services)
 
