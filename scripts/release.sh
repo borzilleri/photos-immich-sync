@@ -133,14 +133,24 @@ resolve_notary_auth() {
     return 0
   fi
 
-  if xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1; then
+  local notary_err
+  if notary_err="$(xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" 2>&1 >/dev/null)"; then
     NOTARY_AUTH_ARGS=(--keychain-profile "$NOTARY_PROFILE")
     NOTARY_AUTH_MODE="keychain-profile ($NOTARY_PROFILE)"
     return 0
   fi
 
   cat >&2 <<EOF
-${C_RED}[err]${C_RESET}   No notarization credentials available.
+${C_RED}[err]${C_RESET}   Notarization auth check failed.
+
+xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" reported:
+  ${notary_err:-(no output)}
+
+Common causes:
+  - No credentials stored for the "$NOTARY_PROFILE" keychain profile.
+  - An Apple Developer agreement is expired or unsigned (HTTP 403). The
+    Account Holder must accept it at https://developer.apple.com/account;
+    credentials are unaffected and need no changes.
 
 Configure ONE of the following before re-running, or set SKIP_NOTARIZE=1 to
 build an unnotarized pkg for local testing.
