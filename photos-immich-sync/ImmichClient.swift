@@ -290,6 +290,12 @@ final public class ImmichApiClient: Sendable {
       case .ok(let okResponse):
         if case .json(let payload) = okResponse.body {
           let permissionSet = Set(payload.permissions)
+          // API keys generated with the "All" checkbox have the "all" permission,
+          // instead of just listing each individual permission.
+          // So check for that first.
+          if permissionSet.contains(.all) {
+            return
+          }
           if !PERMISSIONS_CORE.isSubset(of: permissionSet) {
             let missing = PERMISSIONS_CORE.subtracting(permissionSet)
             Self.log.error("Missing Core permissions: \(missing.map(\.rawValue))")
