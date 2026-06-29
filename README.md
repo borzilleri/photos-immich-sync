@@ -4,6 +4,16 @@
 library to an [Immich](https://immich.app) server. It provides a full sync
 mode and an incremental delta sync mode.
 
+## IMPORTANT
+
+The 1.x version of this app uses the `deviceId` and `deviceAssetId` fields in
+Immich to match and track uploaded assets. These fields, and API endpoints 
+that leverage them, are being removed in the upcoming 3.x release of Immich.
+
+The (currently in development) 2.x version of `photos-immich-sync` will be 
+compatable with both 2.x and 3.x versions of Immich, and be forward compatable
+through an Immich upgrade.
+
 ## Installation
 
 1. Download the latest signed `.pkg` from the GitHub Releases page.
