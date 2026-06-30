@@ -30,9 +30,10 @@ private let assetKeywordQuery = """
   SELECT
     assets.ZUUID as "uuid",
     keyword.ZTITLE as "keyword"
-  FROM 
+  FROM
     ZASSET as assets
-    INNER JOIN Z_1KEYWORDS as kwfk ON assets.Z_PK=kwfk.Z_1ASSETATTRIBUTES
+    INNER JOIN ZADDITIONALASSETATTRIBUTES as attrs ON attrs.ZASSET=assets.Z_PK
+    INNER JOIN Z_1KEYWORDS as kwfk ON attrs.Z_PK=kwfk.Z_1ASSETATTRIBUTES
     INNER JOIN ZKEYWORD as keyword ON keyword.Z_PK=kwfk.Z_52KEYWORDS
   """
 
