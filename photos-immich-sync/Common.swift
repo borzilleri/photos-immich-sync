@@ -1,6 +1,7 @@
 import Foundation
 import Photos
 
+let IMMICH_SUPPORTED_VERSION_MAJOR = 3
 let APP_NAME = "photos-immich-sync"
 let IMMICH_DEVICE_ID = "io.rampant.photos-immich-sync"
 let LOGGER_SUBSYSTEM = "photos-immich-sync"
@@ -31,14 +32,8 @@ public enum AssetType: String, Comparable, CaseIterable, Sendable {
     }
   }
 
-  func deviceAssetId(id: String) -> String {
-    let suffix =
-      switch self {
-      case .original: ""
-      case .livephoto: ":pairedVideo"
-      default: ":\(self.rawValue)"
-      }
-    return "\(id)\(suffix)"
+  func assetIdentifier(id: String) -> String {
+    return "\(id)\(self.rawValue)"
   }
 
   public static func < (lhs: AssetType, rhs: AssetType) -> Bool {
@@ -69,8 +64,8 @@ public struct AssetBundle: CustomStringConvertible {
   var title: String? = nil
   var caption: String? = nil
 
-  public func getDeviceAssetId(for type: AssetType) -> String {
-    return type.deviceAssetId(id: asset.localIdentifier)
+  public func getAssetIdentifier(for type: AssetType) -> String {
+    return type.assetIdentifier(id: asset.localIdentifier)
   }
 
   public func getImmichDescription() -> String? {

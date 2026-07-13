@@ -7,6 +7,7 @@ private struct Services {
   let exporter: PhotosExporter
   let immichClient: ImmichApiClient
   let immichService: ImmichService
+  let metadataClient: MetadataApiClient
 }
 
 struct GlobalOptions: ParsableArguments {
@@ -100,6 +101,7 @@ private func runUpdateCheck(enabled: Bool, log: CategoryLog) async {
 
 private func makeSyncStack(config: AppConfig, fileService: FileService) throws -> Services {
   let client = try ImmichApiClient(config.immich.api)
+  let metadataClient = try MetadataApiClient(config.immich.api)
   let downloadLimiter = AsyncSemaphore(
     maxConcurrentTasks: max(1, config.immich.assets.maxConcurrentDownloads))
   let downloader = PhotosDownloader(fileService: fileService, retry: config.photos.download.retryConfig)
@@ -108,18 +110,33 @@ private func makeSyncStack(config: AppConfig, fileService: FileService) throws -
     config: config.immich,
     fileService: fileService,
     photoDownloader: downloader,
-    downloadLimiter: downloadLimiter
+    downloadLimiter: downloadLimiter,
+    metadataClient: metadataClient
   )
   let exporter = PhotosExporter(
     fileService: fileService,
     exportConcurrency: config.photos.export.exportConcurrency
   )
-  return Services(fileService: fileService, exporter: exporter, immichClient: client, immichService: service)
+  return Services(fileService: fileService, exporter: exporter, immichClient: client, immichService: service, metadataClient: metadataClient)
+}
+
+/// Run pre-flight checks for connectivity & configuration. Validates that:
+/// - Immich is reachable
+/// - Immich is running a supported version
+/// - Our API Key is valid & properly configured
+/// - The Metadata API is reachable
+private func runPreflight(config: AppConfig, services: Services) async throws {
+  if let version = try await services.immichClient.checkServerVersion(), version.major < IMMICH_SUPPORTED_VERSION_MAJOR {
+    throw ImmichConfigError.unsupportedServerVersion(version)
+  }
+  try await services.immichClient.validateApiKey(config: config.immich)
+  guard await services.metadataClient.checkHealth() else {
+    throw MetadataApiError.healthCheckFailed(config.immich.api.metadataApiUrl)
+  }
 }
 
 private func immichFullSync(config: AppConfig, services: Services) async throws -> Bool {
-  try await services.immichClient.checkServerVersion()
-  try await services.immichClient.validateApiKey(config: config.immich)
+  try await runPreflight(config: config, services: services)
 
   let exportData: FullPhotosExport = await services.exporter.generateFullExport(config: config.photos.export)
   if config.exportOnly {
@@ -131,8 +148,7 @@ private func immichFullSync(config: AppConfig, services: Services) async throws 
 
 private func immichDeltaSync(config: AppConfig, services: Services) async throws -> Bool {
   let log = Log.forCategory(APP_NAME)
-  try await services.immichClient.checkServerVersion()
-  try await services.immichClient.validateApiKey(config: config.immich)
+  try await runPreflight(config: config, services: services)
 
   let token: PHPersistentChangeToken?
   do {

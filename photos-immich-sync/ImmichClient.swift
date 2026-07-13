@@ -10,7 +10,6 @@ import OpenAPIRuntime
 import OpenAPIURLSession
 import Photos
 
-
 let DATE_FMT = Date.ISO8601FormatStyle()
 let DATE_FMT_WITH_FRACTIONAL_SECONDS = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
 let PERMISSIONS_CORE: Set<Components.Schemas.Permission> = [
@@ -19,7 +18,7 @@ let PERMISSIONS_CORE: Set<Components.Schemas.Permission> = [
   .asset_delete,
   .asset_upload,
   .asset_copy,
-  .stack_create
+  .stack_create,
 ]
 let PERMISSIONS_ALBUMS: Set<Components.Schemas.Permission> = [
   .album_create,
@@ -27,14 +26,14 @@ let PERMISSIONS_ALBUMS: Set<Components.Schemas.Permission> = [
   .album_update,
   .album_delete,
   .albumAsset_create,
-  .albumAsset_delete
+  .albumAsset_delete,
 ]
 let PERMISSIONS_TAGS: Set<Components.Schemas.Permission> = [
   .tag_create,
   .tag_read,
   .tag_update,
   .tag_delete,
-  .tag_asset
+  .tag_asset,
 ]
 
 enum ImmichPermissionError: Error {
@@ -48,6 +47,7 @@ public enum ImmichApiError: Error {
 
 public enum ImmichConfigError: Error {
   case invalidServerURL(String)
+  case unsupportedServerVersion(SemanticVersion)
 }
 
 private struct ApiKeyMiddleware: ClientMiddleware {
@@ -117,18 +117,6 @@ private struct ConcurrencyLimitMiddleware: ClientMiddleware {
   }
 }
 
-/// Converts a Swift `Duration` into a NIO `TimeAmount`, saturating at `Int64.max`
-/// nanoseconds so that an absurdly large timeout cannot overflow.
-private func timeAmount(from duration: Duration) -> TimeAmount {
-  let (seconds, attoseconds) = duration.components
-  let nanosFromAtto = attoseconds / 1_000_000_000
-  let (mul, mulOverflow) = seconds.multipliedReportingOverflow(by: 1_000_000_000)
-  if mulOverflow { return .nanoseconds(.max) }
-  let (sum, sumOverflow) = mul.addingReportingOverflow(nanosFromAtto)
-  if sumOverflow { return .nanoseconds(.max) }
-  return .nanoseconds(sum)
-}
-
 // Retriable Http Error Codes
 private let RETRYABLE_HTTP_CLIENT_ERRORS: [HTTPClientError] = [.deadlineExceeded, .readTimeout, .writeTimeout]
 private let RETRYABLE_HTTP2_ERROR_CODES: [HTTP2ErrorCode] = [
@@ -142,7 +130,7 @@ private let RETRYABLE_HTTP2_ERROR_CODES: [HTTP2ErrorCode] = [
 private let retainedHTTPClients = NIOLockedValueBox<[HTTPClient]>([])
 
 final public class ImmichApiClient: Sendable {
-  let SEARCH_MAX_SIZE: Double = 1_000
+  let SEARCH_MAX_SIZE: Int = 1_000
   let SEARCH_MAX_PAGES: Int = 10_000
 
   private static let log = Log.forCategory("ImmichAPI")
@@ -162,8 +150,8 @@ final public class ImmichApiClient: Sendable {
     retryAttempts = max(1, config.retryAttempts)
 
     var httpConfig = HTTPClient.Configuration.singletonConfiguration
-    httpConfig.timeout.connect = timeAmount(from: config.connectTimeout)
-    let idleTimeout = config.connectionIdleTimeout.map { timeAmount(from: $0) }
+    httpConfig.timeout.connect = config.connectTimeout.toTimeAmount()
+    let idleTimeout = config.connectionIdleTimeout.map({ $0.toTimeAmount() })
     httpConfig.timeout.read = idleTimeout
     httpConfig.timeout.write = idleTimeout
     httpConfig.connectionPool.concurrentHTTP1ConnectionsPerHostSoftLimit = max(1, config.maxConcurrentRequests)
@@ -175,7 +163,7 @@ final public class ImmichApiClient: Sendable {
     retainedHTTPClients.withLockedValue { $0.append(httpClient) }
 
     let limiter = AsyncSemaphore(maxConcurrentTasks: max(1, config.maxConcurrentRequests))
-    let deadline = config.requestTimeout.map { timeAmount(from: $0) } ?? .nanoseconds(.max)
+    let deadline = config.requestTimeout.map({ $0.toTimeAmount() }) ?? .nanoseconds(.max)
     let transportConfig = AsyncHTTPClientTransport.Configuration(
       client: httpClient,
       timeout: deadline
@@ -219,7 +207,7 @@ final public class ImmichApiClient: Sendable {
     }
     if error is TimeoutError { return true }
     if let httpErr = error as? HTTPClientError, RETRYABLE_HTTP_CLIENT_ERRORS.contains(httpErr) { return true }
-    if let streamClosed = error as? NIOHTTP2Errors.StreamClosed, 
+    if let streamClosed = error as? NIOHTTP2Errors.StreamClosed,
       RETRYABLE_HTTP2_ERROR_CODES.contains(streamClosed.errorCode)
     {
       return true
@@ -322,17 +310,20 @@ final public class ImmichApiClient: Sendable {
     }
   }
 
-  public func checkServerVersion() async throws {
-    try await withClientRetry(#function) {
+  public func checkServerVersion() async throws -> SemanticVersion? {
+    return try await withClientRetry(#function) {
       let response = try await self.client.getServerVersion()
       switch response {
       case .ok(let okResponse):
         if case .json(let payload) = okResponse.body {
-          Self.log.progress("Successfully connected to Immich Server: \(payload.major).\(payload.minor).\(payload.patch)")
+          Self.log.progress(
+            "Successfully connected to Immich Server: \(payload.major).\(payload.minor).\(payload.patch)")
+          return SemanticVersion(major: payload.major, minor: payload.minor, patch: payload.patch)
         } else {
           Self.log.progress("Successfully connected to Immich Server, but unable to parse Server Info Response.")
+          // Version is unverifiable; return nil so callers don't gate on a fabricated value.
+          return nil
         }
-        return
       case .undocumented(let status, let result):
         throw try await self.undocumentedToError(status: status, result: result)
       }
@@ -356,21 +347,20 @@ final public class ImmichApiClient: Sendable {
     }
   }
 
-  /* Permission: asset.upload */
-  public func checkExistingAssets(_ deviceAssetIds: [String]) async throws -> [String] {
+  func getAssetMetadata(id: String) async throws -> AssetMetadataValue? {
     return try await withClientRetry(#function) {
-      // The OpenAPI generator often hides Body initializers; use the operation input instead
-      let input = Operations.CheckExistingAssets.Input(
-        body: .json(
-          .init(deviceAssetIds: deviceAssetIds, deviceId: IMMICH_DEVICE_ID)
-        )
-      )
-      let response = try await self.client.checkExistingAssets(input)
+      let response = try await self.client.getAssetMetadata(Operations.GetAssetMetadata.Input(path: .init(id: id)))
       switch response {
       case .ok(let okResponse):
         switch okResponse.body {
         case .json(let payload):
-          return payload.existingIds
+          guard let entry = payload.first(where: { $0.key == IMMICH_DEVICE_ID }) else {
+            return nil
+          }
+          // The generated DTO exposes `value` as a freeform object container,
+          // so round-trip it through JSON to coerce it into the typed struct.
+          let data = try JSONEncoder().encode(entry.value)
+          return try JSONDecoder().decode(AssetMetadataValue.self, from: data)
         }
       case .undocumented(let status, let result):
         throw try await self.undocumentedToError(status: status, result: result)
@@ -450,7 +440,9 @@ final public class ImmichApiClient: Sendable {
     }
   }
 
-  func updateAssetMetadata(id: String, data: [Components.Schemas.AssetMetadataUpsertItemDto]) async throws -> [Components.Schemas.AssetMetadataResponseDto] {
+  func updateAssetMetadata(id: String, data: [Components.Schemas.AssetMetadataUpsertItemDto]) async throws
+    -> [Components.Schemas.AssetMetadataResponseDto]
+  {
     try await withClientRetry(#function) {
       let body = Components.Schemas.AssetMetadataUpsertDto(items: data)
       let response = try await self.client.updateAssetMetadata(.init(path: .init(id: id), body: .json(body)))
@@ -577,18 +569,12 @@ final public class ImmichApiClient: Sendable {
     }
   }
 
-  func searchByDeviceAssetId(_ id: String) async throws -> Components.Schemas.AssetResponseDto? {
-    let dto = Components.Schemas.MetadataSearchDto.init(deviceAssetId: id, deviceId: IMMICH_DEVICE_ID)
-    let response = try await execSearchAssets(dto)
-    return response.assets.items.first
-  }
-
   func searchAssets(_ originalDto: Components.Schemas.MetadataSearchDto) async throws -> [Components.Schemas
     .AssetResponseDto]
   {
     var items: [Components.Schemas.AssetResponseDto] = []
     var pagesFetched = 1
-    var previousPage: Double = 1
+    var previousPage: Int = 1
 
     var dto = originalDto
     dto.size = SEARCH_MAX_SIZE
@@ -598,7 +584,7 @@ final public class ImmichApiClient: Sendable {
     items.append(contentsOf: result.assets.items)
 
     while let nextPage = result.assets.nextPage {
-      guard let nextPageValue = Double(nextPage) else {
+      guard let nextPageValue = Int(nextPage) else {
         throw ImmichApiError.invalidPagination(
           reason: "Server returned non-numeric nextPage token \"\(nextPage)\"")
       }
@@ -617,6 +603,12 @@ final public class ImmichApiClient: Sendable {
       items.append(contentsOf: result.assets.items)
     }
     return items
+  }
+
+  func searchByAlbum(_ id: String) async throws -> [Components.Schemas.AssetResponseDto] {
+    let dto = Components.Schemas.MetadataSearchDto(albumIds: [id])
+    let response = try await execSearchAssets(dto)
+    return response.assets.items
   }
 
   // MARK: Album APIs
@@ -711,7 +703,9 @@ final public class ImmichApiClient: Sendable {
     }
   }
 
-  func updateAlbum(_ id: String, dto: Components.Schemas.UpdateAlbumDto) async throws -> Components.Schemas.AlbumResponseDto {
+  func updateAlbum(_ id: String, dto: Components.Schemas.UpdateAlbumDto) async throws
+    -> Components.Schemas.AlbumResponseDto
+  {
     return try await withClientRetry(#function) {
       let response = try await self.client.updateAlbumInfo(path: .init(id: id), body: .json(dto))
       switch response {

@@ -77,6 +77,7 @@ private let IMMICH_CLIENT_CONNECT_TIMEOUT_SECONDS: Int = 30
 private let IMMICH_CLIENT_IDLE_TIMEOUT_SECONDS: Int = 300
 struct ImmichApiConfig: Codable {
   var url: String
+  var metadataApiUrl: String
   var apiKey: String
   var maxConcurrentRequests: Int
   var retryAttempts: Int
@@ -91,6 +92,7 @@ struct ImmichApiConfig: Codable {
   public init(from decoder: any Decoder) throws {
     let c = try decoder.container(keyedBy: CodingKeys.self)
     url = try c.decode(String.self, forKey: .url)
+    metadataApiUrl = try c.decode(String.self, forKey: .metadataApiUrl)
     apiKey = try c.decode(String.self, forKey: .apiKey)
     maxConcurrentRequests =
       try c.decodeIfPresent(Int.self, forKey: .maxConcurrentRequests) ?? IMMICH_CLIENT_CONCURRENT_REQUESTS

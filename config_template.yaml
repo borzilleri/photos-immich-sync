@@ -25,6 +25,11 @@ immich:
     # This is the URL to your Immich instance, including the /api path.
     url: "https://immich.example.com/api"
     #
+    # Metadata API URL.
+    # URL to the Immich Metadata API deployed along side your Immich instance.
+    # See: https://github.com/borzilleri/immich-metadata-api
+    metadataApiUrl: "https://immich-metadata-api.example.com"
+    #
     # Immich API Key.
     # See README for required scopes.
     apiKey: "1234567890"
