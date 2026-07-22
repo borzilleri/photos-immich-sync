@@ -228,10 +228,15 @@ public class ImmichService {
     let prefetched = await prefetchManagedMetadata()
     let immichIds = await uploadAssets(export.assetBundles)
 
-    // Prune reuses the prefetched managed set. Skip it if the prefetch failed, so we
-    // never mass-delete on partial data.
-    if prefetched {
+    // Only prune assets if we know our export is complete AND we successfully pre-fetched metadata.
+    // Without both we may have an incorrect picture of what our orphaned assets are, and we should err on the side of
+    // not deleting data. A non-erroring full-sync will resolve these later.
+    if prefetched && export.complete {
       await pruneOrphanAssets(bundles: export.assetBundles)
+    } else if !export.complete {
+      Self.log.warning(
+        "Skipping orphan prune: the photo export was incomplete (some assets failed to export). Re-run once resolved to reconcile deletions."
+      )
     } else {
       Self.log.warning("Skipping orphan prune because managed metadata prefetch failed.")
     }
