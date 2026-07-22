@@ -607,8 +607,7 @@ final public class ImmichApiClient: Sendable {
 
   func searchByAlbum(_ id: String) async throws -> [Components.Schemas.AssetResponseDto] {
     let dto = Components.Schemas.MetadataSearchDto(albumIds: [id])
-    let response = try await execSearchAssets(dto)
-    return response.assets.items
+    return try await searchAssets(dto)
   }
 
   // MARK: Album APIs

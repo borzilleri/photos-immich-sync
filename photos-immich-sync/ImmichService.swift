@@ -29,7 +29,9 @@ actor AssetCache {
   }
 
   public func clear(immichId: String) {
-    assetIdentifierToImmichId.removeValue(forKey: immichId)
+    if let el = assetIdentifierToImmichId.first(where: {$0.value == immichId}) {
+      assetIdentifierToImmichId.removeValue(forKey: el.key)
+    }
     immichAssets.removeValue(forKey: immichId)
     immichMetadata.removeValue(forKey: immichId)
   }
@@ -1300,24 +1302,6 @@ public class ImmichService {
     // Be sure we're not JUST changing the album name
     guard !photosAlbum.nameChangeOnly else {
       Self.log.progress("Updated Album Name: \(albumName)")
-      return
-    }
-
-    // Retrieve the remote album
-    // The album passed in probably doesn't have asset membership info,
-    // but retrieving it here will get us that.
-    do {
-      immichAlbum = try await self.client.getAlbum(immichAlbum.id)
-    } catch {
-      Self.log.error(
-        "Error fetching album. Skipping.",
-        stage: .syncAlbum,
-        context: Self.errorContext(
-          (.albumId, immichAlbum.id),
-          (.albumName, immichAlbum.albumName)
-        ),
-        cause: error
-      )
       return
     }
 
