@@ -40,15 +40,11 @@ struct AppConfig: Codable {
   }
 }
 
-private let IMMICH_ID_CHECK_BATCH_SIZE: Int = 5_000
 struct ImmichConfig: Codable {
   var api: ImmichApiConfig
   var assets: ImmichAssetConfig
   var tags: ImmichTagConfig
   var albums: ImmichAlbumConfig
-
-  /// Private Options
-  var idCheckBatchSize: Int
 
   public init(from decoder: any Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -56,8 +52,6 @@ struct ImmichConfig: Codable {
     assets = try container.decodeIfPresent(ImmichAssetConfig.self, forKey: .assets) ?? ImmichAssetConfig()
     tags = try container.decodeIfPresent(ImmichTagConfig.self, forKey: .tags) ?? ImmichTagConfig()
     albums = try container.decodeIfPresent(ImmichAlbumConfig.self, forKey: .albums) ?? ImmichAlbumConfig()
-
-    idCheckBatchSize = try container.decodeIfPresent(Int.self, forKey: .idCheckBatchSize) ?? IMMICH_ID_CHECK_BATCH_SIZE
   }
 }
 
