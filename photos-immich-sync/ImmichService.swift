@@ -1433,7 +1433,17 @@ public class ImmichService {
       return
     }
     let immichAlbumMap = Dictionary(
-      uniqueKeysWithValues: immichAlbums.map({ (client.extractAlbumTagValue($0.description), $0) }))
+      immichAlbums.compactMap { album -> (String, Components.Schemas.AlbumResponseDto)? in
+        guard let marker = client.extractAlbumTagValue(album.description) else { return nil }
+        return (marker, album)
+      }
+    ) { existing, duplicate in
+      Self.log.warning(
+        "syncAlbums: duplicate album marker; keeping album \(existing.id), ignoring \(duplicate.id)",
+        stage: .syncAlbum
+      )
+      return existing
+    }
 
     await withDiscardingTaskGroup { group in
       for album in photosAlbums {
