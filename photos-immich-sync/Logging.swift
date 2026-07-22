@@ -47,14 +47,15 @@ struct RunSummary: Sendable {
 
 enum LogContextKey: String {
   case immichId
-  case deviceAssetId
   case localIdentifier
+  case cloudIdentifier
   case assetType
   case filename
   case tagId
   case tagName
   case albumId
   case albumName
+  case albumLocalidentifier
 }
 
 enum PipelineStage: String, Sendable {

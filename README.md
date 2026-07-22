@@ -1,8 +1,27 @@
 # Photos-Immich-Sync
 
+> [!WARNING]
+> Immich 3.0 had significant breaking changes to the API. Read below for 
+> details on upgrading & version alignment.
+
 `photos-immich-sync` is a macOS command-line tool that syncs your Apple Photos
 library to an [Immich](https://immich.app) server. It provides a full sync
 mode and an incremental delta sync mode.
+
+## Immich Version Requirements
+
+Immich version 3.0 introduced breaking API changes that required a substantial
+refactor of this app. You will need to use version 3.x of `photos-immich-sync`
+with Immich 3.x. Version 3 of this app is not compatible with Immich v2.x.
+
+If you're still on Immich 2.x, you will need to use version 1.2.3 of
+`photos-immich-sync`. Installation instructions specific to that version
+are available [here](https://github.com/borzilleri/photos-immich-sync/blob/v1.2.3/README.md).
+
+| photos-immich-sync version | Immich version |
+| ---- | ---- |
+| 3.x | 3+ |
+| <1.2.3 | 2.x |
 
 ## Installation
 

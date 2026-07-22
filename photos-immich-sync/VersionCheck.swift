@@ -8,12 +8,12 @@ private let GITHUB_RELEASES_LATEST_URL =
 private let UPDATE_CHECK_TIMEOUT: TimeAmount = .seconds(5)
 private let UPDATE_CHECK_MAX_BODY = 256 * 1024
 
-struct SemanticVersion: Comparable {
+public struct SemanticVersion: Comparable {
   let major: Int
   let minor: Int
   let patch: Int
 
-  init?(parsing raw: String) {
+  public init?(parsing raw: String) {
     var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
     if s.first == "v" || s.first == "V" { s.removeFirst() }
     if let i = s.firstIndex(where: { $0 == "-" || $0 == "+" }) { s = String(s[..<i]) }
@@ -27,7 +27,13 @@ struct SemanticVersion: Comparable {
     (major, minor, patch) = (nums[0], nums[1], nums[2])
   }
 
-  static func < (l: SemanticVersion, r: SemanticVersion) -> Bool {
+  public init(major: Int, minor: Int, patch: Int) {
+    self.major = major
+    self.minor = minor
+    self.patch = patch
+  }
+
+  public static func < (l: SemanticVersion, r: SemanticVersion) -> Bool {
     (l.major, l.minor, l.patch) < (r.major, r.minor, r.patch)
   }
 }
