@@ -53,6 +53,20 @@ private struct DeltaChanges {
   let deletedAlbumIds: [String]
 }
 
+/// Outcome of resolving an asset's resources for export.
+private enum ResourceCollection {
+  case resources([AssetType: PHAssetResource])
+  case skipped  // intentionally not synced (.unknown / .audio) — absence is correct
+  case unavailable  // syncable asset with no usable original — a fatal, export-incompleting drop
+}
+
+/// Outcome of turning an asset into an export bundle.
+private enum AssetExportOutcome {
+  case bundle(AssetBundle)
+  case skipped
+  case unavailable
+}
+
 actor CloudIdentifierCache {
   private static let log = Log.forCategory("Photos")
   var localToCloudMap: [String: String] = [:]
@@ -147,7 +161,7 @@ public struct PhotosExporter {
       keywords = await collectKeywords(db: db, uuidMap: uuidMap)
     }
 
-    let bundles = await assembleBundlesFromAssets(assets: changes.changedAssets, infos: assetDbMetadata)
+    let (bundles, failedCount) = await assembleBundlesFromAssets(assets: changes.changedAssets, infos: assetDbMetadata)
     let albums = fetchChangedAlbums(changes.changedAlbumIds, config: config)
 
     Self.log.progress(
@@ -158,13 +172,21 @@ public struct PhotosExporter {
         \(albums.count) new/updated albums
         \(changes.deletedAlbumIds.count) deleted albums
         \(keywords?.count ?? 0) keywords
+        \(failedCount) assets failed to export
       """)
+    if failedCount > 0 {
+      Self.log.warning(
+        "Some assets failed to export. This change window will be retried on the next delta sync.",
+        stage: .exportAssets
+      )
+    }
     return DeltaPhotosExport(
       upsertedBundles: bundles,
       deletedAssets: changes.deletedAssetIds,
       keywords: keywords,
       upsertedAlbums: albums,
-      deletedAlbums: changes.deletedAlbumIds
+      deletedAlbums: changes.deletedAlbumIds,
+      complete: failedCount == 0
     )
   }
 
@@ -181,7 +203,7 @@ public struct PhotosExporter {
       keywords = await collectKeywords(db: db, uuidMap: uuidMap)
     }
 
-    let bundles = await assembleBundlesFromAssets(assets: assets, infos: assetDbMetadata)
+    let (bundles, failedCount) = await assembleBundlesFromAssets(assets: assets, infos: assetDbMetadata)
     let albums = fetchAllAlbums(config: config)
 
     Self.log.progress(
@@ -191,11 +213,13 @@ public struct PhotosExporter {
         \(bundles.reduce(0, { $0+$1.resources.count })) files
         \(albums.count) albums
         \(keywords?.count ?? 0) keywords
+        \(failedCount) assets failed to export
       """)
     return FullPhotosExport(
       assetBundles: bundles,
       keywords: keywords,
-      albums: albums
+      albums: albums,
+      complete: failedCount == 0
     )
   }
 
@@ -340,7 +364,7 @@ public struct PhotosExporter {
     return nil
   }
 
-  private func collectAssetResources(_ asset: PHAsset) async -> [AssetType: PHAssetResource]? {
+  private func collectAssetResources(_ asset: PHAsset) async -> ResourceCollection {
     let resources: [PHAssetResource] = PHAssetResource.assetResources(for: asset)
     var resourcesToSync: [AssetType: PHAssetResource] = [:]
     switch asset.mediaType {
@@ -365,32 +389,42 @@ public struct PhotosExporter {
         resourcesToSync[.original] = video
       }
     case .unknown, .audio:
+      // Intentionally not synced; absence from the export is correct, not a failure.
       Self.log.debug(
         "Skipping non-synced asset type '\(asset.mediaType)': \(asset.localIdentifier)"
       )
+      return .skipped
     @unknown default:
       Self.log.debug(
         "Skipping unknown asset type for '\(asset.mediaType)': \(asset.localIdentifier)"
       )
+      return .skipped
     }
     if resourcesToSync.isEmpty || resourcesToSync[.original] == nil {
+      // A syncable asset we could not resolve. This is a fatal drop: it makes the export
+      // incomplete, so callers must not treat this asset's absence as a deletion.
       Self.log.warning(
         "No resources exported, or no original resource found to export. Skipping asset.",
         stage: .exportAssets,
         context: [.localIdentifier: asset.localIdentifier]
       )
-      return nil
+      return .unavailable
     }
     Self.log.debug("Exporting asset: \(resourcesToSync.map({k,v in "\(k.rawValue):\(v.originalFilename)"}))")
-    return resourcesToSync
+    return .resources(resourcesToSync)
   }
 
+  /// Assembles export bundles for `assets`. Returns the bundles plus a count of *fatal*
+  /// drops — syncable assets that could not be resolved (`.unavailable`). Intentional skips
+  /// (`.unknown`/`.audio`) are excluded and do not count. A non-zero `failedCount` means the
+  /// export is incomplete and callers must not treat absent assets as deletions.
   private func assembleBundlesFromAssets(assets: [PHAsset], infos: [String: AssetInfo]?)
-    async -> [AssetBundle]
+    async -> (bundles: [AssetBundle], failedCount: Int)
   {
     Self.log.progress("Assembling assets and metadata into export bundles.")
-    let result = await withTaskGroup(of: AssetBundle?.self) { group in
+    let result = await withTaskGroup(of: AssetExportOutcome.self) { group in
       var bundles = [AssetBundle]()
+      var failedCount = 0
       var iter = assets.makeIterator()
       var inflight = 0
 
@@ -403,10 +437,12 @@ public struct PhotosExporter {
         }
         inflight += 1
       }
-      while let bundle = await group.next() {
+      while let outcome = await group.next() {
         inflight -= 1
-        if let bundle {
-          bundles.append(bundle)
+        switch outcome {
+        case .bundle(let bundle): bundles.append(bundle)
+        case .unavailable: failedCount += 1
+        case .skipped: break
         }
         if let asset = iter.next() {
           group.addTask {
@@ -415,41 +451,33 @@ public struct PhotosExporter {
           inflight += 1
         }
       }
-      return bundles
+      return (bundles, failedCount)
     }
     Self.log.progress("Bundle assembly complete")
     return result
   }
 
-  private func processAssetToBundle(_ asset: PHAsset, info: AssetInfo?) async -> AssetBundle? {
-    let cloudId = await cloudIdCache.getCloudId(asset.localIdentifier)
-    let resources = await collectAssetResources(asset)
-    if resources == nil || resources?.isEmpty == true {
-      Self.log.warning(
-        "No resources found to export, skipping.",
-        stage: .exportAssets,
-        context: [.localIdentifier: asset.localIdentifier]
-      )
-      return nil
+  private func processAssetToBundle(_ asset: PHAsset, info: AssetInfo?) async -> AssetExportOutcome {
+    let resources: [AssetType: PHAssetResource]
+    switch await collectAssetResources(asset) {
+    case .skipped:
+      return .skipped
+    case .unavailable:
+      return .unavailable
+    case .resources(let collected):
+      resources = collected
     }
-    // This should be perfunctory at this point, just to safely unwrap the optionals.
-    if let resources {
-      var title: String? = nil
-      var caption: String? = nil
-      if let info {
-        title = info.title
-        caption = info.caption
-      }
-      return AssetBundle(
+    let cloudId = await cloudIdCache.getCloudId(asset.localIdentifier)
+    return .bundle(
+      AssetBundle(
         asset: asset,
         cloudIdentifier: cloudId,
         resources: resources,
         burstIdentifier: asset.burstIdentifier,
-        title: title,
-        caption: caption
+        title: info?.title,
+        caption: info?.caption
       )
-    }
-    return nil
+    )
   }
 
   private func shouldExport(_ asset: PHAsset, config: PhotosExportConfig) -> Bool {

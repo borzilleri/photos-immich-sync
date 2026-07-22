@@ -47,12 +47,17 @@ public struct DeltaPhotosExport {
   let keywords: [PhotosKeyword]?
   let upsertedAlbums: [PhotosAlbum]
   let deletedAlbums: [String]
+  /// Indicates one or more assets failed to successfully export, and the assetBundle set should not be considered complete.
+  /// For delta exports, this should indicate that the change token should not be advanced/persisted.
+  let complete: Bool
 }
 
 public struct FullPhotosExport {
   let assetBundles: [AssetBundle]
   let keywords: [PhotosKeyword]?
   let albums: [PhotosAlbum]
+  /// Indicates that one or more assets failed to succesfully export, and the assetBundle set should not be considered complete & authoritative.
+  let complete: Bool
 }
 
 public struct AssetBundle: CustomStringConvertible {

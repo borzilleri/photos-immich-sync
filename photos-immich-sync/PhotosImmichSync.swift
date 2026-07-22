@@ -169,7 +169,10 @@ private func immichDeltaSync(config: AppConfig, services: Services) async throws
     return false
   }
   await services.immichService.performDeltaSync(changes)
-  return true
+  // Only advance the Photos change token if every asset exported. If the export was
+  // incomplete, returning false leaves the token unchanged so the next delta retries the
+  // same window.
+  return changes.complete
 }
 
 private func runSync(

@@ -203,6 +203,24 @@ Currently, `photos-immich-sync` will not stack burst photos. You may opt
 to stack these yourself, however note that this may produce unexpected
 unexpected interactions on future syncs.
 
+### Asset Deletion
+
+`photos-immich-sync` can be configured to delete assets from Immich when they
+are deleted from your Photos Library. This is controlled by the 
+`immich.assets.delete` config setting.
+
+During a `full-sync` operation, any assets in Immich owned by this app that
+are not present in the exported set from Photos will be deleted. This delete
+will not happen if the photos export is incomplete or the app is unable to
+retrieve a full set of managed assets from Immich.
+
+During a `delta-sync` operation, assets that have been deleted during the
+change window will be deleted from Immich. If any of these failed to export,
+(ie, the export is incomplete), a new change token will not be written and the
+next delta sync will attempt to re-process the change window (along with new
+changes as well). Re-processing assets is idempotent, so this should be a safe
+catch-up mechanism.
+
 ### System Logs
 
 In addition to stdout/stderr, every log line is written to the macOS
