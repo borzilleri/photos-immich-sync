@@ -31,6 +31,7 @@ actor AssetCache {
   public func clear(immichId: String) {
     if let el = assetIdentifierToImmichId.first(where: {$0.value == immichId}) {
       assetIdentifierToImmichId.removeValue(forKey: el.key)
+      knownAssetIdentifiers.remove(el.key)
     }
     immichAssets.removeValue(forKey: immichId)
     immichMetadata.removeValue(forKey: immichId)
