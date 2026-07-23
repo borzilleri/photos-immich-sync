@@ -138,7 +138,7 @@ private func runPreflight(config: AppConfig, services: Services) async throws {
 private func immichFullSync(config: AppConfig, services: Services) async throws -> Bool {
   try await runPreflight(config: config, services: services)
 
-  let exportData: FullPhotosExport = await services.exporter.generateFullExport(config: config.photos.export)
+  let exportData: FullPhotosExport = await services.exporter.generateFullExport(config: config)
   if config.exportOnly {
     return false
   }
@@ -161,7 +161,7 @@ private func immichDeltaSync(config: AppConfig, services: Services) async throws
     log.warning("No saved Photos change token. Please run a full sync first.")
     return false
   }
-  guard let changes = await services.exporter.generateDeltaExport(token, config: config.photos.export) else {
+  guard let changes = await services.exporter.generateDeltaExport(token, config: config) else {
     // `fetchChanges` already logged a per-PHPhotosError-code message.
     return false
   }

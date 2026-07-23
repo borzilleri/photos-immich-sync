@@ -1056,6 +1056,12 @@ public class ImmichService {
 
     let keywordsByTagValue = buildKeywordMap(keywords: keywords, tagPrefix: tagPrefix)
     let desiredTagValues = Set(keywordsByTagValue.keys)
+    // Deletion must retain every tag whose keyword still exists in Photos — not only those
+    // whose assets changed this run. In a delta, buildKeywordMap yields empty assetIds for
+    // unchanged keywords and drops them; deleting on that basis would wipe tags whose photos
+    // simply weren't touched. `keywords` always holds the full keyword list, so derive the
+    // retain set from all of them.
+    let retainedTagValues = Set(keywords.map { "\(tagPrefix)\($0.keyword)" })
     let remoteTagValues = Set(tagValueToIdMap.keys)
 
     // Create any missing managed tags
@@ -1077,7 +1083,7 @@ public class ImmichService {
       // Keep ancestor tags for nested desired tags.
       let tagsToDelete =
         remoteTagValues
-        .filter({ shouldDeleteTag(tagValue: $0, desiredTagValues: desiredTagValues) })
+        .filter({ shouldDeleteTag(tagValue: $0, desiredTagValues: retainedTagValues) })
         .sorted()
       await withDiscardingTaskGroup { group in
         for tagValue in tagsToDelete {
