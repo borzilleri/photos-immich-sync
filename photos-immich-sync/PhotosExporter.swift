@@ -144,25 +144,18 @@ public struct PhotosExporter {
       """
   }
 
-  public func generateDeltaExport(_ changeToken: PHPersistentChangeToken, config: PhotosExportConfig) async
+  func generateDeltaExport(_ changeToken: PHPersistentChangeToken, config: AppConfig) async
     -> DeltaPhotosExport?
   {
-    guard let changes = await fetchChanges(changeToken, config: config) else {
+    guard let changes = await fetchChanges(changeToken, config: config.photos.export) else {
       return nil
     }
     await cloudIdCache.populateCache(localIdentifiers: changes.changedAssets.map(\.localIdentifier))
 
-    var assetDbMetadata: [String: AssetInfo]? = nil
-    var keywords: [PhotosKeyword]? = nil
-
-    if config.includeTitleCaption, let db = await preparePhotosDb() {
-      let uuidMap = await localIdMap.snapshot()
-      assetDbMetadata = await fetchAssetInfo(db: db, uuidMap: uuidMap)
-      keywords = await collectKeywords(db: db, uuidMap: uuidMap)
-    }
+    let (assetDbMetadata, keywords) = await loadPhotosDbData(config: config)
 
     let (bundles, failedCount) = await assembleBundlesFromAssets(assets: changes.changedAssets, infos: assetDbMetadata)
-    let albums = fetchChangedAlbums(changes.changedAlbumIds, config: config)
+    let albums = fetchChangedAlbums(changes.changedAlbumIds, config: config.photos.export)
 
     Self.log.progress(
       """
@@ -190,21 +183,14 @@ public struct PhotosExporter {
     )
   }
 
-  public func generateFullExport(config: PhotosExportConfig) async -> FullPhotosExport {
-    let assets = await fetchAssets(config: config)
+  func generateFullExport(config: AppConfig) async -> FullPhotosExport {
+    let assets = await fetchAssets(config: config.photos.export)
     await cloudIdCache.populateCache(localIdentifiers: assets.map(\.localIdentifier))
 
-    var assetDbMetadata: [String: AssetInfo]? = nil
-    var keywords: [PhotosKeyword]? = nil
-
-    if config.includeTitleCaption, let db = await preparePhotosDb() {
-      let uuidMap = await localIdMap.snapshot()
-      assetDbMetadata = await fetchAssetInfo(db: db, uuidMap: uuidMap)
-      keywords = await collectKeywords(db: db, uuidMap: uuidMap)
-    }
+    let (assetDbMetadata, keywords) = await loadPhotosDbData(config: config)
 
     let (bundles, failedCount) = await assembleBundlesFromAssets(assets: assets, infos: assetDbMetadata)
-    let albums = fetchAllAlbums(config: config)
+    let albums = fetchAllAlbums(config: config.photos.export)
 
     Self.log.progress(
       """
@@ -333,6 +319,23 @@ public struct PhotosExporter {
     }
     Self.log.progress("Metadata fetch complete")
     return assetDescriptions
+  }
+
+  /// Loads the SQLite-backed Photos data needed for this run. Title/caption info is loaded
+  /// when `photos.export.includeTitleCaption` is set; keywords are loaded when tag sync is
+  /// enabled (`immich.tags.enabled`). The DB is only copied if at least one is needed.
+  private func loadPhotosDbData(config: AppConfig)
+    async -> (info: [String: AssetInfo]?, keywords: [PhotosKeyword]?)
+  {
+    let includeTitleCaption = config.photos.export.includeTitleCaption
+    let includeKeywords = config.immich.tags.enabled
+    guard includeTitleCaption || includeKeywords, let db = await preparePhotosDb() else {
+      return (nil, nil)
+    }
+    let uuidMap = await localIdMap.snapshot()
+    let info = includeTitleCaption ? await fetchAssetInfo(db: db, uuidMap: uuidMap) : nil
+    let keywords = includeKeywords ? await collectKeywords(db: db, uuidMap: uuidMap) : nil
+    return (info, keywords)
   }
 
   func preparePhotosDb() async -> String? {
