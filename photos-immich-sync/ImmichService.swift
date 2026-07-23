@@ -272,7 +272,9 @@ public class ImmichService {
     if prefetched {
       await self.deleteAssets(changes.deletedAssets)
     } else if !changes.deletedAssets.isEmpty {
-      Self.log.warning("Skipping asset deletion because managed metadata prefetch failed. Re-run to reconcile deletions.")
+      Self.log.error(
+        "Skipping asset deletion: metadata prefetch failed, unable to resolve immich ids. Re-run delta sync when resolved retry.",
+        stage: .deleteAsset)
     }
 
     if config.tags.enabled, let keywords = changes.keywords {
