@@ -38,15 +38,19 @@ public struct PhotosCore {
   }
 
   public static func checkAuthorization(requireAuth: Bool, requestAuth: Bool) throws {
-    let current = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-    try validate(current, notDeterminedError: requireAuth ? .authorizationRequired : nil)
+    var current = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+    var notDeterminedError: PhotosAuthorizationError? = requireAuth ? .authorizationRequired : nil
 
-    if current != .authorized && requestAuth {
-      try requestAuthorization()
+    if requestAuth && current == .notDetermined {
+      current = requestAuthorization()
+      // We prompted; a still-undetermined result is now a post-request failure.
+      notDeterminedError = .notDeterminedAfterRequest
     }
+
+    try validate(current, notDeterminedError: notDeterminedError)
   }
 
-  public static func requestAuthorization() throws {
+  private static func requestAuthorization() -> PHAuthorizationStatus {
     let sema = DispatchSemaphore(value: 0)
     var result: PHAuthorizationStatus = .notDetermined
     PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
@@ -54,8 +58,7 @@ public struct PhotosCore {
       sema.signal()
     }
     sema.wait()
-
-    try validate(result, notDeterminedError: .notDeterminedAfterRequest)
+    return result
   }
 
   public static func getPersistentChangeToken() -> PHPersistentChangeToken {
