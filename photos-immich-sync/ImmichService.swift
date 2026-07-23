@@ -29,7 +29,9 @@ actor AssetCache {
   }
 
   public func clear(immichId: String) {
-    assetIdentifierToImmichId.removeValue(forKey: immichId)
+    if let el = assetIdentifierToImmichId.first(where: {$0.value == immichId}) {
+      assetIdentifierToImmichId.removeValue(forKey: el.key)
+    }
     immichAssets.removeValue(forKey: immichId)
     immichMetadata.removeValue(forKey: immichId)
   }
@@ -1309,24 +1311,6 @@ public class ImmichService {
       return
     }
 
-    // Retrieve the remote album
-    // The album passed in probably doesn't have asset membership info,
-    // but retrieving it here will get us that.
-    do {
-      immichAlbum = try await self.client.getAlbum(immichAlbum.id)
-    } catch {
-      Self.log.error(
-        "Error fetching album. Skipping.",
-        stage: .syncAlbum,
-        context: Self.errorContext(
-          (.albumId, immichAlbum.id),
-          (.albumName, immichAlbum.albumName)
-        ),
-        cause: error
-      )
-      return
-    }
-
     // Resolve our localIdentifiers into Immich Asset Ids.
     let immichIdsToAdd = await withTaskGroup(of: [String].self) { group in
       for localIdentifier in photosAlbum.assetIds {
@@ -1455,7 +1439,17 @@ public class ImmichService {
       return
     }
     let immichAlbumMap = Dictionary(
-      uniqueKeysWithValues: immichAlbums.map({ (client.extractAlbumTagValue($0.description), $0) }))
+      immichAlbums.compactMap { album -> (String, Components.Schemas.AlbumResponseDto)? in
+        guard let marker = client.extractAlbumTagValue(album.description) else { return nil }
+        return (marker, album)
+      }
+    ) { existing, duplicate in
+      Self.log.warning(
+        "syncAlbums: duplicate album marker; keeping album \(existing.id), ignoring \(duplicate.id)",
+        stage: .syncAlbum
+      )
+      return existing
+    }
 
     await withDiscardingTaskGroup { group in
       for album in photosAlbums {
