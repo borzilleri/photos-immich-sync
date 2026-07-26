@@ -64,10 +64,6 @@
             argument = "--config-file $HOME/Projects/photos-immich-sync/config.yaml"
             isEnabled = "YES">
          </CommandLineArgument>
-         <CommandLineArgument
-            argument = "-vv"
-            isEnabled = "YES">
-         </CommandLineArgument>
       </CommandLineArguments>
    </LaunchAction>
    <ProfileAction

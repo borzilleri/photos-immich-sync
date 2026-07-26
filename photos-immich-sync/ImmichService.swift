@@ -907,8 +907,16 @@ public class ImmichService {
     }
 
     do {
+      // Immich's Server **INCORRECTLY** handles the 'metadata' field on asset upload:
+      // Array-typed multipart uploads expect the part to simply be specified multiple times, but the server
+      // expects an array passed as a single part.
+      // Because they're too bad at their jobs to do it *right*, we have to hack around it here.
+      // The openapi spec file has been updated to type the metadata field as a `string`, and we manually encode
+      // the value in a format Immich can handle.
+      // I love doing other people's work for them.
       let metadataDto = try buildAssetMetadataDto(bundle, type: type)
-      data.append(.metadata(.init(payload: .init(body: metadataDto))))
+      let metadataJSON = String(decoding: try JSONEncoder().encode([metadataDto]), as: UTF8.self)
+      data.append(.metadata(.init(payload: .init(body: .init(metadataJSON)))))
     } catch {
       throw error
     }
