@@ -17522,11 +17522,8 @@
             "type": "string"
           },
           "metadata": {
-            "description": "Asset metadata items",
-            "items": {
-              "$ref": "#/components/schemas/AssetMetadataUpsertItemDto"
-            },
-            "type": "array"
+            "description": "Asset metadata items, JSON-encoded as an array of AssetMetadataUpsertItemDto. Immich's server reads this multipart field as an opaque JSON string and parses it into an array, but the upstream spec describes it as `type: array`, which swift-openapi-generator serializes as one JSON object per part rather than a single JSON-array string. Typed as `string` here so buildCreateDto can encode the array in the exact wire format Immich expects. RE-APPLY THIS PATCH whenever openapi.json is refreshed from Immich.",
+            "type": "string"
           },
           "sidecarData": {
             "description": "Sidecar file data",
