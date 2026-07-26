@@ -5,15 +5,56 @@ let DEFAULT_CONFIG_PATH = FileManager.default.homeDirectoryForCurrentUser
   .appendingPathComponent(".config/photos-immich-sync/photos-immich-sync.yaml")
   .absoluteString
 
+/// Dynamic coding key that accepts any string
+/// Used to enumerate raw keys in a decoder mapping to detect unknown keys
+/// `CodingKeys`-typed containers will only know about keys they define, and ignore others.
+private struct AnyCodingKey: CodingKey {
+  let stringValue: String
+  let intValue: Int?
+  init?(stringValue: String) {
+    self.stringValue = stringValue
+    self.intValue = nil
+  }
+  init?(intValue: Int) {
+    self.stringValue = String(intValue)
+    self.intValue = intValue
+  }
+}
+
+/// Throws `DecodingError.dataCorrupted` if the decoder's mapping contains any
+/// key not declared in `K`, so misconfigured/typo'd config keys fail, instead of being silently ignored.
+private func rejectUnknownKeys<K: CodingKey & CaseIterable>(
+  _ keyType: K.Type, in decoder: any Decoder
+) throws {
+  let known = Set(K.allCases.map(\.stringValue))
+  let dynamic = try decoder.container(keyedBy: AnyCodingKey.self)
+  let unknown = dynamic.allKeys.map(\.stringValue).filter { !known.contains($0) }.sorted()
+  guard unknown.isEmpty else {
+    let path = dynamic.codingPath.map(\.stringValue).joined(separator: ".")
+    let location = path.isEmpty ? "config root" : "'\(path)'"
+    throw DecodingError.dataCorrupted(
+      .init(
+        codingPath: dynamic.codingPath,
+        debugDescription:
+          "Unknown key(s) in \(location): \(unknown.joined(separator: ", ")). "
+          + "Allowed keys: \(known.sorted().joined(separator: ", "))."))
+  }
+}
 
 struct AppConfig: Codable {
+  enum CodingKeys: String, CodingKey, CaseIterable {
+    case enableUpdateCheck, immich, photos, exportOnly
+  }
+
   var enableUpdateCheck: Bool
   var immich: ImmichConfig
   var photos: PhotosConfig
 
+  /// Internal-Only Config Key, for testing
   var exportOnly: Bool
 
   public init(from decoder: any Decoder) throws {
+    try rejectUnknownKeys(CodingKeys.self, in: decoder)
     let container = try decoder.container(keyedBy: CodingKeys.self)
     immich = try container.decode(ImmichConfig.self, forKey: .immich)
     photos = try container.decodeIfPresent(PhotosConfig.self, forKey: .photos) ?? PhotosConfig()
@@ -41,12 +82,17 @@ struct AppConfig: Codable {
 }
 
 struct ImmichConfig: Codable {
+  enum CodingKeys: String, CodingKey, CaseIterable {
+    case api, assets, tags, albums
+  }
+
   var api: ImmichApiConfig
   var assets: ImmichAssetConfig
   var tags: ImmichTagConfig
   var albums: ImmichAlbumConfig
 
   public init(from decoder: any Decoder) throws {
+    try rejectUnknownKeys(CodingKeys.self, in: decoder)
     let container = try decoder.container(keyedBy: CodingKeys.self)
     api = try container.decode(ImmichApiConfig.self, forKey: .api)
     assets = try container.decodeIfPresent(ImmichAssetConfig.self, forKey: .assets) ?? ImmichAssetConfig()
@@ -70,6 +116,11 @@ private let IMMICH_CLIENT_REQUEST_TIMEOUT_SECONDS: Int = 0
 private let IMMICH_CLIENT_CONNECT_TIMEOUT_SECONDS: Int = 30
 private let IMMICH_CLIENT_IDLE_TIMEOUT_SECONDS: Int = 300
 struct ImmichApiConfig: Codable {
+  enum CodingKeys: String, CodingKey, CaseIterable {
+    case url, metadataApiUrl, apiKey, maxConcurrentRequests, retryAttempts
+    case requestTimeoutSeconds, connectTimeoutSeconds, connectionIdleTimeoutSeconds
+  }
+
   var url: String
   var metadataApiUrl: String
   var apiKey: String
@@ -78,12 +129,14 @@ struct ImmichApiConfig: Codable {
   var requestTimeoutSeconds: Int
   var connectTimeoutSeconds: Int
   var connectionIdleTimeoutSeconds: Int
-
   var requestTimeout: Duration? { requestTimeoutSeconds == 0 ? nil : .seconds(requestTimeoutSeconds) }
   var connectTimeout: Duration { .seconds(connectTimeoutSeconds) }
-  var connectionIdleTimeout: Duration? { connectionIdleTimeoutSeconds == 0 ? nil : .seconds(connectionIdleTimeoutSeconds) }
+  var connectionIdleTimeout: Duration? {
+    connectionIdleTimeoutSeconds == 0 ? nil : .seconds(connectionIdleTimeoutSeconds)
+  }
 
   public init(from decoder: any Decoder) throws {
+    try rejectUnknownKeys(CodingKeys.self, in: decoder)
     let c = try decoder.container(keyedBy: CodingKeys.self)
     url = try c.decode(String.self, forKey: .url)
     metadataApiUrl = try c.decode(String.self, forKey: .metadataApiUrl)
@@ -98,10 +151,15 @@ struct ImmichApiConfig: Codable {
     connectionIdleTimeoutSeconds =
       try c.decodeIfPresent(Int.self, forKey: .connectionIdleTimeoutSeconds) ?? IMMICH_CLIENT_IDLE_TIMEOUT_SECONDS
     try validateInt(name: "immich.client.retryAttempts", codingPath: c.codingPath, value: retryAttempts, min: 1)
-    try validateInt(name: "immich.client.maxConcurrentRequests", codingPath: c.codingPath, value: maxConcurrentRequests, min: 1)
-    try validateInt(name: "immich.client.requestTimeoutSeconds", codingPath: c.codingPath, value: requestTimeoutSeconds, min: 0)
-    try validateInt(name: "immich.client.connectTimeoutSeconds", codingPath: c.codingPath, value: connectTimeoutSeconds, min: 1)
-    try validateInt(name: "immich.client.connectionIdleTimeoutSeconds", codingPath: c.codingPath, value: connectionIdleTimeoutSeconds, min: 0)
+    try validateInt(
+      name: "immich.client.maxConcurrentRequests", codingPath: c.codingPath, value: maxConcurrentRequests, min: 1)
+    try validateInt(
+      name: "immich.client.requestTimeoutSeconds", codingPath: c.codingPath, value: requestTimeoutSeconds, min: 0)
+    try validateInt(
+      name: "immich.client.connectTimeoutSeconds", codingPath: c.codingPath, value: connectTimeoutSeconds, min: 1)
+    try validateInt(
+      name: "immich.client.connectionIdleTimeoutSeconds", codingPath: c.codingPath, value: connectionIdleTimeoutSeconds,
+      min: 0)
   }
 }
 
@@ -110,10 +168,13 @@ private let IMMICH_SYNC_DELETE: Bool = true
 private let IMMICH_SYNC_FORCE_DELETE: Bool = true
 private let IMMICH_SYNC_DOWNLOAD_CONCURRENCY: Int = 500
 public struct ImmichAssetConfig: Codable {
+  enum CodingKeys: String, CodingKey, CaseIterable {
+    case overwriteInfo, delete, forceDelete, maxConcurrentDownloads
+  }
+
   var overwriteInfo: Bool
   var delete: Bool
   var forceDelete: Bool
-  /// Governs maximum concurrent downloaded assets, during asset sync stage.
   var maxConcurrentDownloads: Int
 
   public init() {
@@ -124,6 +185,7 @@ public struct ImmichAssetConfig: Codable {
   }
 
   public init(from decoder: any Decoder) throws {
+    try rejectUnknownKeys(CodingKeys.self, in: decoder)
     let c = try decoder.container(keyedBy: CodingKeys.self)
     overwriteInfo = try c.decodeIfPresent(Bool.self, forKey: .overwriteInfo) ?? IMMICH_SYNC_OVERWRITE_INFO
     maxConcurrentDownloads =
@@ -154,6 +216,10 @@ private let IMMICH_TAG_DELETE: Bool = true
 private let IMMICH_TAG_PARENT: String = "🍎"
 private let IMMICH_TAG_PRIMARY_ONLY: Bool = true
 struct ImmichTagConfig: Codable {
+  enum CodingKeys: String, CodingKey, CaseIterable {
+    case enabled, delete, parentTag, stackPrimaryOnly
+  }
+
   var enabled: Bool
   var delete: Bool
   var parentTag: String
@@ -167,6 +233,7 @@ struct ImmichTagConfig: Codable {
   }
 
   public init(from decoder: any Decoder) throws {
+    try rejectUnknownKeys(CodingKeys.self, in: decoder)
     let c = try decoder.container(keyedBy: CodingKeys.self)
     enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? IMMICH_TAG_ENABLED
     delete = try c.decodeIfPresent(Bool.self, forKey: .delete) ?? IMMICH_TAG_DELETE
@@ -182,6 +249,10 @@ private let IMMICH_ALBUM_CREATE_EMPTY: Bool = false
 private let IMMICH_ALBUM_PRIMARY_ONLY: Bool = true
 private let IMMICH_ALBUM_TRACK: Bool = true
 struct ImmichAlbumConfig: Codable {
+  enum CodingKeys: String, CodingKey, CaseIterable {
+    case enabled, delete, pathSeparator, createEmpty, stackPrimaryOnly
+  }
+
   var enabled: Bool
   var delete: Bool
   var pathSeparator: String
@@ -197,6 +268,7 @@ struct ImmichAlbumConfig: Codable {
   }
 
   init(from decoder: any Decoder) throws {
+    try rejectUnknownKeys(CodingKeys.self, in: decoder)
     let c = try decoder.container(keyedBy: CodingKeys.self)
     enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? IMMICH_ALBUM_ENABLED
     delete = try c.decodeIfPresent(Bool.self, forKey: .delete) ?? IMMICH_ALBUM_DELETE
@@ -215,7 +287,12 @@ struct PhotosConfig: Codable {
     download = PhotosDownloadConfig()
   }
 
+  enum CodingKeys: String, CodingKey, CaseIterable {
+    case export, download
+  }
+
   init(from decoder: any Decoder) throws {
+    try rejectUnknownKeys(CodingKeys.self, in: decoder)
     let container = try decoder.container(keyedBy: CodingKeys.self)
     self.export = try container.decodeIfPresent(PhotosExportConfig.self, forKey: .export) ?? PhotosExportConfig()
     self.download =
@@ -230,12 +307,16 @@ private let PHOTOS_EXPORT_INCLUDE_HIDDEN_DEFAULT: Bool = false
 private let PHOTOS_EXPORT_FETCH_LIMIT: Int? = nil
 private let PHOTOS_EXPORT_OLDEST_FIRST: Bool = false
 public struct PhotosExportConfig: Codable {
+  enum CodingKeys: String, CodingKey, CaseIterable {
+    case includeBursts, includeTitleCaption, exportConcurrency
+    case includeHidden, fetchLimit, oldestFirst
+  }
+
   var includeBursts: BurstType
   var includeTitleCaption: Bool
-  /// Governs concurrency of calls to PhotoKit during asset export.
   var exportConcurrency: Int
 
-  /// Private Options
+  /// Internal-Only Config Values, for testing
   var includeHidden: Bool
   var fetchLimit: Int?
   var oldestFirst: Bool
@@ -250,6 +331,7 @@ public struct PhotosExportConfig: Codable {
   }
 
   public init(from decoder: any Decoder) throws {
+    try rejectUnknownKeys(CodingKeys.self, in: decoder)
     let container = try decoder.container(keyedBy: CodingKeys.self)
     self.includeHidden =
       try container.decodeIfPresent(Bool.self, forKey: .includeHidden) ?? PHOTOS_EXPORT_INCLUDE_HIDDEN_DEFAULT
@@ -266,6 +348,10 @@ public struct PhotosExportConfig: Codable {
 private let PHOTOS_DOWNLOAD_TIMEOUT_SECONDS: Int = 300
 private let PHOTOS_DOWNLOAD_RETRY_ATTEMPTS: Int = 3
 struct PhotosDownloadConfig: Codable {
+  enum CodingKeys: String, CodingKey, CaseIterable {
+    case timeoutSeconds, retryAttempts
+  }
+
   var timeoutSeconds: Int
   var retryAttempts: Int
 
@@ -277,6 +363,7 @@ struct PhotosDownloadConfig: Codable {
   }
 
   public init(from decoder: any Decoder) throws {
+    try rejectUnknownKeys(CodingKeys.self, in: decoder)
     let container = try decoder.container(keyedBy: CodingKeys.self)
     self.timeoutSeconds =
       try container.decodeIfPresent(Int.self, forKey: .timeoutSeconds) ?? PHOTOS_DOWNLOAD_TIMEOUT_SECONDS
