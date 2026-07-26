@@ -11,16 +11,22 @@ mode and an incremental delta sync mode.
 ## Immich Version Requirements
 
 Immich version 3.0 introduced breaking API changes that required a substantial
-refactor of this app. You will need to use version 3.x of `photos-immich-sync`
-with Immich 3.x. Version 3 of this app is not compatible with Immich v2.x.
+refactor of this app. If/When you upgrade to v3.x of Immich, you will need to 
+use version 2.x of `photos-immich-sync`. Versions past 2.0 of this app are not 
+compatible with versions of Immich prior to 3.0
 
-If you're still on Immich 2.x, you will need to use version 1.2.3 of
-`photos-immich-sync`. Installation instructions specific to that version
-are available [here](https://github.com/borzilleri/photos-immich-sync/blob/v1.2.3/README.md).
+If you're still on Immich 2.x, the latest version of `photos-immich-sync` you
+should use is of [v1.2.3](https://github.com/borzilleri/photos-immich-sync/releases/tag/v1.2.3)
+Installation instructions specific to that version are available [here](https://github.com/borzilleri/photos-immich-sync/blob/v1.2.3/README.md).
+
+> [!CAUTION]
+> The 1.x version of `photos-immich-sync` will no longer receive updates. It is
+> **strongly** recommended to update to Immich >3.0 and `photos-immich-sync` 
+> >2.0
 
 | photos-immich-sync version | Immich version |
 | ---- | ---- |
-| 3.x | 3+ |
+| 2.x | 3+ |
 | <1.2.3 | 2.x |
 
 ## Installation
