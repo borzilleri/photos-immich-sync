@@ -17,16 +17,16 @@ import os
 /// | info       | -      | -      | stdout  | stdout | stdout |
 /// | debug      | -      | -      | -       | stdout | stdout |
 /// | trace      | -      | -      | -       | -      | stdout |
-enum Verbosity: Int, Comparable, Sendable {
+public enum Verbosity: Int, Comparable, Sendable {
   case quiet = 0
   case normal = 1
   case verbose = 2
   case debug = 3
   case trace = 4
 
-  static func < (lhs: Verbosity, rhs: Verbosity) -> Bool { lhs.rawValue < rhs.rawValue }
+  public static func < (lhs: Verbosity, rhs: Verbosity) -> Bool { lhs.rawValue < rhs.rawValue }
 
-  static func fromFlags(quiet: Bool, verbose: Int) -> Verbosity {
+  public static func fromFlags(quiet: Bool, verbose: Int) -> Verbosity {
     if quiet { return .quiet }
     switch verbose {
     case ..<0, 0: return .normal
@@ -37,15 +37,15 @@ enum Verbosity: Int, Comparable, Sendable {
   }
 }
 
-struct RunSummary: Sendable {
+public struct RunSummary: Sendable {
   let errors: Int
   let warnings: Int
 
-  var hasErrors: Bool { errors > 0 }
-  var hasWarnings: Bool { warnings > 0 }
+  public var hasErrors: Bool { errors > 0 }
+  public var hasWarnings: Bool { warnings > 0 }
 }
 
-enum LogContextKey: String {
+public enum LogContextKey: String {
   case immichId
   case localIdentifier
   case cloudIdentifier
@@ -58,7 +58,7 @@ enum LogContextKey: String {
   case albumLocalidentifier
 }
 
-enum PipelineStage: String, Sendable {
+public enum PipelineStage: String, Sendable {
   case exportAssets
   case exportKeywords
   case exportAssetMetadata
@@ -226,23 +226,23 @@ final class LogSink: @unchecked Sendable {
 /// Global logging facade. `configure(verbosity:)` must be called once at startup
 /// before services begin emitting. Categories are typically created once per
 /// long-lived service: `private let log = Log.forCategory("Immich")`.
-enum Log {
+public enum Log {
   fileprivate static let sink = LogSink()
 
-  static func configure(verbosity: Verbosity) {
+  public static func configure(verbosity: Verbosity) {
     sink.configure(verbosity: verbosity)
   }
 
   /// Returns a `CategoryLog` handle bound to `name`. Cheap to call repeatedly;
   /// each handle creates its own `os.Logger`, but they share the underlying sink.
-  static func forCategory(_ name: String) -> CategoryLog {
+  public static func forCategory(_ name: String) -> CategoryLog {
     CategoryLog(category: name)
   }
 
-  static func summary() -> RunSummary { sink.summary() }
+  public static func summary() -> RunSummary { sink.summary() }
 }
 
-struct CategoryLog: Sendable {
+public struct CategoryLog: Sendable {
   let category: String
   private let logger: Logger
 
@@ -253,7 +253,7 @@ struct CategoryLog: Sendable {
 
   /// A fatal/critical event.
   /// Surfaced on stderr at every verbosity (including `--quiet`).
-  func error(
+  public func error(
     _ message: String,
     stage: PipelineStage? = nil,
     context: [LogContextKey: String] = [:],
@@ -270,7 +270,7 @@ struct CategoryLog: Sendable {
 
   /// A recoverable but noteworthy event.
   /// Surfaced on stderr at `normal` verbosity and above.
-  func warning(
+  public func warning(
     _ message: String,
     stage: PipelineStage? = nil,
     context: [LogContextKey: String] = [:],

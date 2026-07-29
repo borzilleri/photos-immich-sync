@@ -128,7 +128,7 @@ public struct FileService {
   let workDir: URL
   let dataDir: URL
 
-  init() throws {
+  public init() throws {
     self.workDir = try FileService.makeTempDir()
     self.dataDir = try FileService.makeStorageDir()
     self.changeTokenFile = self.dataDir.appendingPathComponent(CHANGE_TOKEN_FILE, isDirectory: false)
@@ -181,7 +181,7 @@ public struct FileService {
     return dataDir
   }
 
-  func cleanup() {
+  public func cleanup() {
     try? FileManager.default.removeItem(at: self.workDir)
   }
 
@@ -475,12 +475,12 @@ public struct FileService {
     return Int64(values.fileSize ?? 0)
   }
 
-  func writeChangeToken(_ token: PHPersistentChangeToken) throws {
+  public func writeChangeToken(_ token: PHPersistentChangeToken) throws {
     let tokenData = try NSKeyedArchiver.archivedData(withRootObject: token, requiringSecureCoding: true)
     try tokenData.write(to: self.changeTokenFile, options: .atomic)
   }
 
-  func loadChangeToken() throws -> PHPersistentChangeToken? {
+  public func loadChangeToken() throws -> PHPersistentChangeToken? {
     guard FileManager.default.fileExists(atPath: self.changeTokenFile.path) else {
       return nil
     }

@@ -46,6 +46,27 @@ jobs:
             ONLY_ACTIVE_ARCH=NO \
             CODE_SIGNING_ALLOWED=NO
 
+  test:
+    name: Test (Core Package)
+    runs-on: macos-26
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Cache SwiftPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: PhotosImmichSyncCore/.build
+          key: ${{ runner.os }}-spm-test-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-test-
+
+      - name: Test
+        run: |
+          set -euo pipefail
+          swift test --package-path PhotosImmichSyncCore
+
   config-lint:
     name: Validate Config
     runs-on: ubuntu-latest

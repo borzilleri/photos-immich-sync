@@ -1,8 +1,8 @@
 import Foundation
 import Photos
 
-let IMMICH_SUPPORTED_VERSION_MAJOR = 3
-let APP_NAME = "photos-immich-sync"
+public let IMMICH_SUPPORTED_VERSION_MAJOR = 3
+public let APP_NAME = "photos-immich-sync"
 let IMMICH_DEVICE_ID = "io.rampant.photos-immich-sync"
 let LOGGER_SUBSYSTEM = "photos-immich-sync"
 
@@ -49,7 +49,7 @@ public struct DeltaPhotosExport {
   let deletedAlbums: [String]
   /// Indicates one or more assets failed to successfully export, and the assetBundle set should not be considered complete.
   /// For delta exports, this should indicate that the change token should not be advanced/persisted.
-  let complete: Bool
+  public let complete: Bool
 }
 
 public struct FullPhotosExport {
@@ -119,7 +119,7 @@ public actor AsyncSemaphore {
   private var inflight: Int = 0
   private var waiters: [(id: UUID, continuation: CheckedContinuation<Void, Error>)] = []
 
-  init(maxConcurrentTasks: Int) {
+  public init(maxConcurrentTasks: Int) {
     precondition(maxConcurrentTasks >= 1, "AsyncSemaphore maxConcurrentTasks must be at least 1")
     self.maxConcurrentTasks = maxConcurrentTasks
   }
@@ -236,7 +236,7 @@ func performWithTimeout<T: Sendable>(
   }
 }
 
-struct RetryConfig {
+public struct RetryConfig {
   var maxAttempts: Int
   var timeout: Duration
 }
