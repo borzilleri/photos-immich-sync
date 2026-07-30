@@ -101,7 +101,7 @@ final public class MetadataApiClient: Sendable {
   private let requestTimeout: TimeAmount?
   private let retryAttempts: Int
 
-  init(_ config: ImmichApiConfig) throws {
+  public init(_ config: ImmichApiConfig) throws {
     let trimmed = config.metadataApiUrl.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmed.isEmpty,
       let baseURL = URL(string: trimmed),
@@ -137,7 +137,7 @@ final public class MetadataApiClient: Sendable {
 
   // MARK: - Public API
 
-  func checkHealth() async -> Bool {
+  public func checkHealth() async -> Bool {
     do {
       _ = try await execute(path: "/health", query: [])
       return true

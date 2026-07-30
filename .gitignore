@@ -5,3 +5,5 @@ config.yaml
 immich-api/
 build/
 dist/
+.build/
+xcuserdata/

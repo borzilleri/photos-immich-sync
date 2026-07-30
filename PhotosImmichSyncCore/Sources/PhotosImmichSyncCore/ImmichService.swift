@@ -209,7 +209,7 @@ public class ImmichService {
     }
   }
 
-  init(
+  public init(
     client: ImmichApiClient,
     config: ImmichConfig,
     fileService: FileService,
@@ -227,7 +227,7 @@ public class ImmichService {
     self.albumListCache = AlbumListCache(client: client)
   }
 
-  func performFullSync(_ export: FullPhotosExport) async {
+  public func performFullSync(_ export: FullPhotosExport) async {
     let prefetched = await prefetchManagedMetadata()
     let immichIds = await uploadAssets(export.assetBundles)
 
@@ -256,7 +256,7 @@ public class ImmichService {
     reportSyncCompletion(mode: "Full")
   }
 
-  func performDeltaSync(_ changes: DeltaPhotosExport) async {
+  public func performDeltaSync(_ changes: DeltaPhotosExport) async {
     // Delta only acts on the changed assets, so prefetch just their metadata rather than
     // enumerating the whole managed set (the full set is only needed by orphan pruning,
     // which delta never runs).

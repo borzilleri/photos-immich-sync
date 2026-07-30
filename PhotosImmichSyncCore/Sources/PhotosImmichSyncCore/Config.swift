@@ -1,7 +1,7 @@
 import Foundation
 import Yams
 
-let DEFAULT_CONFIG_PATH = FileManager.default.homeDirectoryForCurrentUser
+public let DEFAULT_CONFIG_PATH = FileManager.default.homeDirectoryForCurrentUser
   .appendingPathComponent(".config/photos-immich-sync/photos-immich-sync.yaml")
   .absoluteString
 
@@ -41,17 +41,17 @@ private func rejectUnknownKeys<K: CodingKey & CaseIterable>(
   }
 }
 
-struct AppConfig: Codable {
+public struct AppConfig: Codable {
   enum CodingKeys: String, CodingKey, CaseIterable {
     case enableUpdateCheck, immich, photos, exportOnly
   }
 
-  var enableUpdateCheck: Bool
-  var immich: ImmichConfig
-  var photos: PhotosConfig
+  public var enableUpdateCheck: Bool
+  public var immich: ImmichConfig
+  public var photos: PhotosConfig
 
   /// Internal-Only Config Key, for testing
-  var exportOnly: Bool
+  public var exportOnly: Bool
 
   public init(from decoder: any Decoder) throws {
     try rejectUnknownKeys(CodingKeys.self, in: decoder)
@@ -63,7 +63,7 @@ struct AppConfig: Codable {
     enableUpdateCheck = try container.decodeIfPresent(Bool.self, forKey: .enableUpdateCheck) ?? true
   }
 
-  static func load(fromFile path: String) throws -> AppConfig {
+  public static func load(fromFile path: String) throws -> AppConfig {
     let fileURL: URL
     if let u = URL(string: path), u.isFileURL {
       fileURL = u
@@ -81,13 +81,13 @@ struct AppConfig: Codable {
   }
 }
 
-struct ImmichConfig: Codable {
+public struct ImmichConfig: Codable {
   enum CodingKeys: String, CodingKey, CaseIterable {
     case api, assets, tags, albums
   }
 
-  var api: ImmichApiConfig
-  var assets: ImmichAssetConfig
+  public var api: ImmichApiConfig
+  public var assets: ImmichAssetConfig
   var tags: ImmichTagConfig
   var albums: ImmichAlbumConfig
 
@@ -115,14 +115,14 @@ private let IMMICH_CLIENT_RETRY_ATTEMPTS = 3
 private let IMMICH_CLIENT_REQUEST_TIMEOUT_SECONDS: Int = 0
 private let IMMICH_CLIENT_CONNECT_TIMEOUT_SECONDS: Int = 30
 private let IMMICH_CLIENT_IDLE_TIMEOUT_SECONDS: Int = 300
-struct ImmichApiConfig: Codable {
+public struct ImmichApiConfig: Codable {
   enum CodingKeys: String, CodingKey, CaseIterable {
     case url, metadataApiUrl, apiKey, maxConcurrentRequests, retryAttempts
     case requestTimeoutSeconds, connectTimeoutSeconds, connectionIdleTimeoutSeconds
   }
 
-  var url: String
-  var metadataApiUrl: String
+  public var url: String
+  public var metadataApiUrl: String
   var apiKey: String
   var maxConcurrentRequests: Int
   var retryAttempts: Int
@@ -175,7 +175,7 @@ public struct ImmichAssetConfig: Codable {
   var overwriteInfo: Bool
   var delete: Bool
   var forceDelete: Bool
-  var maxConcurrentDownloads: Int
+  public var maxConcurrentDownloads: Int
 
   public init() {
     overwriteInfo = IMMICH_SYNC_OVERWRITE_INFO
@@ -278,9 +278,9 @@ struct ImmichAlbumConfig: Codable {
   }
 }
 
-struct PhotosConfig: Codable {
-  var export: PhotosExportConfig
-  var download: PhotosDownloadConfig
+public struct PhotosConfig: Codable {
+  public var export: PhotosExportConfig
+  public var download: PhotosDownloadConfig
 
   init() {
     export = PhotosExportConfig()
@@ -291,7 +291,7 @@ struct PhotosConfig: Codable {
     case export, download
   }
 
-  init(from decoder: any Decoder) throws {
+  public init(from decoder: any Decoder) throws {
     try rejectUnknownKeys(CodingKeys.self, in: decoder)
     let container = try decoder.container(keyedBy: CodingKeys.self)
     self.export = try container.decodeIfPresent(PhotosExportConfig.self, forKey: .export) ?? PhotosExportConfig()
@@ -314,7 +314,7 @@ public struct PhotosExportConfig: Codable {
 
   var includeBursts: BurstType
   var includeTitleCaption: Bool
-  var exportConcurrency: Int
+  public var exportConcurrency: Int
 
   /// Internal-Only Config Values, for testing
   var includeHidden: Bool
@@ -347,7 +347,7 @@ public struct PhotosExportConfig: Codable {
 
 private let PHOTOS_DOWNLOAD_TIMEOUT_SECONDS: Int = 300
 private let PHOTOS_DOWNLOAD_RETRY_ATTEMPTS: Int = 3
-struct PhotosDownloadConfig: Codable {
+public struct PhotosDownloadConfig: Codable {
   enum CodingKeys: String, CodingKey, CaseIterable {
     case timeoutSeconds, retryAttempts
   }
@@ -355,7 +355,7 @@ struct PhotosDownloadConfig: Codable {
   var timeoutSeconds: Int
   var retryAttempts: Int
 
-  var retryConfig: RetryConfig { .init(maxAttempts: retryAttempts, timeout: .seconds(timeoutSeconds)) }
+  public var retryConfig: RetryConfig { .init(maxAttempts: retryAttempts, timeout: .seconds(timeoutSeconds)) }
 
   public init() {
     timeoutSeconds = PHOTOS_DOWNLOAD_TIMEOUT_SECONDS

@@ -24,10 +24,15 @@ private actor DownloadTracker {
   }
 }
 
-struct PhotosDownloader {
+public struct PhotosDownloader {
   private static let log = Log.forCategory("Downloader")
   let fileService: FileService
   let retry: RetryConfig
+
+  public init(fileService: FileService, retry: RetryConfig) {
+    self.fileService = fileService
+    self.retry = retry
+  }
 
   func downloadBundle(
     _ bundle: AssetBundle,

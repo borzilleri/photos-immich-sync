@@ -1,6 +1,7 @@
 import ArgumentParser
 import Foundation
 import Photos
+import PhotosImmichSyncCore
 
 private struct Services {
   let fileService: FileService

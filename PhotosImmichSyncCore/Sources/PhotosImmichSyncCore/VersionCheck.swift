@@ -9,9 +9,9 @@ private let UPDATE_CHECK_TIMEOUT: TimeAmount = .seconds(5)
 private let UPDATE_CHECK_MAX_BODY = 256 * 1024
 
 public struct SemanticVersion: Comparable {
-  let major: Int
-  let minor: Int
-  let patch: Int
+  public let major: Int
+  public let minor: Int
+  public let patch: Int
 
   public init?(parsing raw: String) {
     var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -47,8 +47,8 @@ private struct GitHubRelease: Decodable {
   }
 }
 
-enum VersionCheck {
-  static func notifyIfUpdateAvailable(currentVersion: String, log: CategoryLog) async {
+public enum VersionCheck {
+  public static func notifyIfUpdateAvailable(currentVersion: String, log: CategoryLog) async {
     guard let current = SemanticVersion(parsing: currentVersion) else {
       log.debug("Update check skipped: '\(currentVersion)' is not a semantic version.")
       return

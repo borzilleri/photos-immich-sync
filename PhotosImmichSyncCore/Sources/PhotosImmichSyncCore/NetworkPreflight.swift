@@ -12,11 +12,11 @@ import Network
 /// timeout. `NWConnection` does expose this, it stays `.preparing`/`.waiting`
 /// while the prompt is up, and becomes `.ready` once the user allows access.
 /// This lets us block until the user responds, so subsequent HTTP requests succeed.
-enum NetworkPreflight {
+public enum NetworkPreflight {
   fileprivate static let log = Log.forCategory("NetworkPreflight")
-  static let defaultTimeout = Duration.seconds(30)
+  public static let defaultTimeout = Duration.seconds(30)
 
-  static func warmUpLocalNetwork(serverURL: String, timeout: Duration = defaultTimeout) async {
+  public static func warmUpLocalNetwork(serverURL: String, timeout: Duration = defaultTimeout) async {
     let trimmed = serverURL.trimmingCharacters(in: .whitespacesAndNewlines)
     guard let url = URL(string: trimmed), let host = url.host, let scheme = url.scheme else {
       // The URL was already validated when constructing the client; nothing to probe.

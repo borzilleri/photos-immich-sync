@@ -137,7 +137,7 @@ final public class ImmichApiClient: Sendable {
   private let client: Client
   private let retryAttempts: Int
 
-  init(_ config: ImmichApiConfig) throws {
+  public init(_ config: ImmichApiConfig) throws {
     let trimmed = config.url.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmed.isEmpty,
       let baseURL = URL(string: trimmed),
@@ -271,7 +271,7 @@ final public class ImmichApiClient: Sendable {
     preconditionFailure("unreachable: withClientRetry")
   }
 
-  func validateApiKey(config: ImmichConfig) async throws {
+  public func validateApiKey(config: ImmichConfig) async throws {
     try await withClientRetry(#function) {
       let response = try await self.client.getMyApiKey()
       switch response {

@@ -125,7 +125,7 @@ public struct PhotosExporter {
   private let localIdMap = LocalIdentifierMap()
   private let exportConcurrency: Int
 
-  init(fileService: FileService, exportConcurrency: Int) {
+  public init(fileService: FileService, exportConcurrency: Int) {
     self.fs = fileService
     self.cloudIdCache = CloudIdentifierCache()
     self.exportConcurrency = max(1, exportConcurrency)
@@ -144,7 +144,7 @@ public struct PhotosExporter {
       """
   }
 
-  func generateDeltaExport(_ changeToken: PHPersistentChangeToken, config: AppConfig) async
+  public func generateDeltaExport(_ changeToken: PHPersistentChangeToken, config: AppConfig) async
     -> DeltaPhotosExport?
   {
     guard let changes = await fetchChanges(changeToken, config: config.photos.export) else {
@@ -183,7 +183,7 @@ public struct PhotosExporter {
     )
   }
 
-  func generateFullExport(config: AppConfig) async -> FullPhotosExport {
+  public func generateFullExport(config: AppConfig) async -> FullPhotosExport {
     let assets = await fetchAssets(config: config.photos.export)
     await cloudIdCache.populateCache(localIdentifiers: assets.map(\.localIdentifier))
 
