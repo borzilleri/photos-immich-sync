@@ -45,7 +45,7 @@ public struct AssetMetadataValue: Decodable, Sendable {
     if let cloudIdentifier = bundle.cloudIdentifier, let phAssetCloudIdentifier {
       return phAssetCloudIdentifier == cloudIdentifier
     }
-    return phAssetLocalIdentifier == bundle.asset.localIdentifier
+    return phAssetLocalIdentifier == bundle.localIdentifier
   }
 
   public func assetIdentifier() -> String? {

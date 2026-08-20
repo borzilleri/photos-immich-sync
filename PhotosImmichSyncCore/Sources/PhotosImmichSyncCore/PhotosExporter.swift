@@ -134,7 +134,7 @@ public struct PhotosExporter {
   public func generateBundleStats(_ bundles: [AssetBundle]) -> String {
     let livePhotoCount = bundles.filter({ b in b.resources[.livephoto] != nil }).count
     let editedCount = bundles.filter({ $0.resources[.edited] != nil }).count
-    let videoCount = bundles.filter({ $0.asset.mediaType == .video }).count
+    let videoCount = bundles.filter({ $0.mediaType == .video }).count
     return """
         \(bundles.count) new/updated assets:
           \(livePhotoCount) Live Photos
@@ -477,6 +477,16 @@ public struct PhotosExporter {
         cloudIdentifier: cloudId,
         resources: resources,
         burstIdentifier: asset.burstIdentifier,
+        localIdentifier: asset.localIdentifier,
+        mediaType: asset.mediaType,
+        isFavorite: asset.isFavorite,
+        latitude: asset.location?.coordinate.latitude,
+        longitude: asset.location?.coordinate.longitude,
+        creationDate: asset.creationDate ?? Date(),
+        modificationDate: asset.modificationDate ?? (asset.creationDate ?? Date()),
+        duration: asset.duration,
+        mediaSubtypes: asset.mediaSubtypes,
+        hasAdjustments: asset.hasAdjustments,
         title: info?.title,
         caption: info?.caption
       )

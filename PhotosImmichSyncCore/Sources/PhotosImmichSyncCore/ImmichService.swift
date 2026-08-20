@@ -261,7 +261,7 @@ public class ImmichService {
     // enumerating the whole managed set (the full set is only needed by orphan pruning,
     // which delta never runs).
     let touched = Set(
-      changes.upsertedBundles.map(\.asset.localIdentifier)
+      changes.upsertedBundles.map(\.localIdentifier)
         + changes.deletedAssets
         + (changes.keywords?.flatMap(\.assetIds) ?? [])
         + changes.upsertedAlbums.flatMap(\.assetIds))
@@ -352,7 +352,7 @@ public class ImmichService {
               "Error downloading asset resources. Skipping upload.",
               stage: .uploadAsset,
               context: Self.errorContext(
-                (.localIdentifier, bundle.asset.localIdentifier),
+                (.localIdentifier, bundle.localIdentifier),
                 (.filename, bundle.resources[.original]?.originalFilename)
               ),
               cause: error
@@ -415,7 +415,7 @@ public class ImmichService {
         "Error building AssetMediaCreateDto.",
         stage: .uploadAsset,
         context: Self.errorContext(
-          (.localIdentifier, bundle.asset.localIdentifier),
+          (.localIdentifier, bundle.localIdentifier),
           (.cloudIdentifier, bundle.cloudIdentifier),
           (.assetType, type.rawValue),
           (.filename, file.originalFileName)
@@ -432,7 +432,7 @@ public class ImmichService {
         stage: .uploadAsset,
         context: Self.errorContext(
           (.immichId, "\(result.id):\(result.status.rawValue)"),
-          (.localIdentifier, bundle.asset.localIdentifier),
+          (.localIdentifier, bundle.localIdentifier),
           (.cloudIdentifier, bundle.cloudIdentifier),
           (.assetType, type.rawValue),
           (.filename, file.originalFileName)
@@ -443,7 +443,7 @@ public class ImmichService {
         "Error during uploadAsset call.",
         stage: .uploadAsset,
         context: Self.errorContext(
-          (.localIdentifier, bundle.asset.localIdentifier),
+          (.localIdentifier, bundle.localIdentifier),
           (.cloudIdentifier, bundle.cloudIdentifier),
           (.assetType, type.rawValue),
           (.filename, file.originalFileName)
@@ -465,7 +465,7 @@ public class ImmichService {
           stage: .uploadAsset,
           context: Self.errorContext(
             (.immichId, result.id),
-            (.localIdentifier, bundle.asset.localIdentifier),
+            (.localIdentifier, bundle.localIdentifier),
             (.cloudIdentifier, bundle.cloudIdentifier),
             (.assetType, "\(type.rawValue)"),
             (.filename, file.originalFileName)
@@ -486,7 +486,7 @@ public class ImmichService {
           stage: .uploadAsset,
           context: Self.errorContext(
             (.immichId, result.id),
-            (.localIdentifier, bundle.asset.localIdentifier),
+            (.localIdentifier, bundle.localIdentifier),
             (.cloudIdentifier, bundle.cloudIdentifier),
             (.assetType, "\(type.rawValue)"),
             (.filename, file.originalFileName)
@@ -515,7 +515,7 @@ public class ImmichService {
           stage: .uploadAsset,
           context: Self.errorContext(
             (.immichId, result.id),
-            (.localIdentifier, bundle.asset.localIdentifier),
+            (.localIdentifier, bundle.localIdentifier),
             (.cloudIdentifier, bundle.cloudIdentifier),
             (.assetType, "\(type.rawValue)"),
             (.filename, file.originalFileName)
@@ -531,7 +531,7 @@ public class ImmichService {
           stage: .uploadAsset,
           context: Self.errorContext(
             (.immichId, result.id),
-            (.localIdentifier, bundle.asset.localIdentifier),
+            (.localIdentifier, bundle.localIdentifier),
             (.cloudIdentifier, bundle.cloudIdentifier),
             (.assetType, "\(type.rawValue)"),
             (.filename, file.originalFileName)
@@ -548,8 +548,8 @@ public class ImmichService {
   {
     let metadata = try [
       "phAssetCloudIdentifier": bundle.cloudIdentifier,
-      "phAssetLocalIdentifier": bundle.asset.localIdentifier,
-      "burstIdentifier": bundle.asset.burstIdentifier,
+      "phAssetLocalIdentifier": bundle.localIdentifier,
+      "burstIdentifier": bundle.burstIdentifier,
       "resourceType": type.rawValue,
       "originalFilename": bundle.resources[type]?.originalFilename,
     ].mapValues { try OpenAPIValueContainer(unvalidatedValue: $0) }
@@ -567,7 +567,7 @@ public class ImmichService {
         stage: .uploadAsset,
         context: Self.errorContext(
           (.immichId, id),
-          (.localIdentifier, bundle.asset.localIdentifier),
+          (.localIdentifier, bundle.localIdentifier),
           (.cloudIdentifier, bundle.cloudIdentifier),
           (.assetType, "\(type.rawValue)"),
           (.filename, bundle.resources[type]?.originalFilename)
@@ -583,7 +583,7 @@ public class ImmichService {
         stage: .uploadAsset,
         context: Self.errorContext(
           (.immichId, id),
-          (.localIdentifier, bundle.asset.localIdentifier),
+          (.localIdentifier, bundle.localIdentifier),
           (.cloudIdentifier, bundle.cloudIdentifier),
           (.assetType, "\(type.rawValue)"),
           (.filename, bundle.resources[type]?.originalFilename)
@@ -600,7 +600,7 @@ public class ImmichService {
         stage: .uploadAsset,
         context: Self.errorContext(
           (.immichId, id),
-          (.localIdentifier, bundle.asset.localIdentifier),
+          (.localIdentifier, bundle.localIdentifier),
           (.cloudIdentifier, bundle.cloudIdentifier),
           (.assetType, "\(type.rawValue)"),
           (.filename, bundle.resources[type]?.originalFilename)
@@ -611,10 +611,10 @@ public class ImmichService {
 
     let updateDto = Components.Schemas.UpdateAssetDto(
       description: bundle.getImmichDescription(),
-      isFavorite: bundle.asset.isFavorite,
-      latitude: bundle.asset.location?.coordinate.latitude,
+      isFavorite: bundle.isFavorite,
+      latitude: bundle.latitude,
       livePhotoVideoId: livePhotoId,
-      longitude: bundle.asset.location?.coordinate.longitude
+      longitude: bundle.longitude
     )
 
     do {
@@ -624,7 +624,7 @@ public class ImmichService {
         stage: .uploadAsset,
         context: Self.errorContext(
           (.immichId, id),
-          (.localIdentifier, bundle.asset.localIdentifier),
+          (.localIdentifier, bundle.localIdentifier),
           (.cloudIdentifier, bundle.cloudIdentifier),
           (.assetType, "\(type.rawValue)"),
           (.filename, bundle.resources[type]?.originalFilename)
@@ -636,7 +636,7 @@ public class ImmichService {
         stage: .uploadAsset,
         context: Self.errorContext(
           (.immichId, id),
-          (.localIdentifier, bundle.asset.localIdentifier),
+          (.localIdentifier, bundle.localIdentifier),
           (.cloudIdentifier, bundle.cloudIdentifier),
           (.assetType, "\(type.rawValue)"),
           (.filename, bundle.resources[type]?.originalFilename)
@@ -651,13 +651,13 @@ public class ImmichService {
   ) async -> String? {
     let oldAsset: Components.Schemas.AssetResponseDto?
     do {
-      oldAsset = try await assetCache.resolve(localIdentifier: bundle.asset.localIdentifier, type: type)
+      oldAsset = try await assetCache.resolve(localIdentifier: bundle.localIdentifier, type: type)
     } catch {
       Self.log.error(
         "During copy asset, error fetching old asset by local identifier",
         stage: .uploadAsset,
         context: Self.errorContext(
-          (.localIdentifier, bundle.asset.localIdentifier),
+          (.localIdentifier, bundle.localIdentifier),
           (.cloudIdentifier, bundle.cloudIdentifier),
           (.assetType, type.rawValue),
           (.filename, file.originalFileName)
@@ -671,7 +671,7 @@ public class ImmichService {
         "During copy asset, unexpected result, fetching old asset by local identifier returned nil.",
         stage: .uploadAsset,
         context: Self.errorContext(
-          (.localIdentifier, bundle.asset.localIdentifier),
+          (.localIdentifier, bundle.localIdentifier),
           (.cloudIdentifier, bundle.cloudIdentifier),
           (.assetType, type.rawValue),
           (.filename, file.originalFileName)
@@ -687,7 +687,7 @@ public class ImmichService {
         "During copy asset, asset upload failed.",
         stage: .uploadAsset,
         context: Self.errorContext(
-          (.localIdentifier, bundle.asset.localIdentifier),
+          (.localIdentifier, bundle.localIdentifier),
           (.cloudIdentifier, bundle.cloudIdentifier),
           (.assetType, type.rawValue),
           (.filename, file.originalFileName)
@@ -705,7 +705,7 @@ public class ImmichService {
         stage: .uploadAsset,
         context: Self.errorContext(
           (.immichId, newId),
-          (.localIdentifier, bundle.asset.localIdentifier),
+          (.localIdentifier, bundle.localIdentifier),
           (.cloudIdentifier, bundle.cloudIdentifier),
           (.assetType, type.rawValue),
           (.filename, file.originalFileName)
@@ -726,7 +726,7 @@ public class ImmichService {
         stage: .uploadAsset,
         context: Self.errorContext(
           (.immichId, oldAsset.id),
-          (.localIdentifier, bundle.asset.localIdentifier),
+          (.localIdentifier, bundle.localIdentifier),
           (.cloudIdentifier, bundle.cloudIdentifier),
           (.assetType, type.rawValue),
           (.filename, file.originalFileName)
@@ -768,7 +768,7 @@ public class ImmichService {
           "During Asset Sync: Known duplicate found, attempted to update asset info, but could not resolve ImmichId",
           stage: .uploadAsset,
           context: Self.errorContext(
-            (.localIdentifier, bundle.asset.localIdentifier),
+            (.localIdentifier, bundle.localIdentifier),
             (.cloudIdentifier, bundle.cloudIdentifier),
             (.assetType, type.rawValue),
             (.filename, resourceFile.originalFileName)
@@ -784,7 +784,7 @@ public class ImmichService {
         stage: .uploadAsset,
         context: Self.errorContext(
           (.immichId, hashCheck?.assetId),
-          (.localIdentifier, bundle.asset.localIdentifier),
+          (.localIdentifier, bundle.localIdentifier),
           (.cloudIdentifier, bundle.cloudIdentifier),
           (.assetType, type.rawValue),
           (.filename, resourceFile.originalFileName)
@@ -889,17 +889,17 @@ public class ImmichService {
     data.append(.filename(.init(payload: .init(body: .init(stringLiteral: file.originalFileName)))))
     data.append(
       .isFavorite(
-        .init(payload: .init(body: .init(stringLiteral: bundle.asset.isFavorite ? "true" : "false"))))
+        .init(payload: .init(body: .init(stringLiteral: bundle.isFavorite ? "true" : "false"))))
     )
 
-    let createdAt = (bundle.asset.creationDate ?? Date()).formatted(.iso8601)
+    let createdAt = (bundle.creationDate).formatted(.iso8601)
     data.append(.fileCreatedAt(.init(payload: .init(body: .init(createdAt)))))
-    let modifiedAt = bundle.asset.modificationDate?.formatted(.iso8601) ?? createdAt
+    let modifiedAt = bundle.modificationDate.formatted(.iso8601)
     data.append(.fileModifiedAt(.init(payload: .init(body: .init(modifiedAt)))))
 
-    if bundle.asset.duration > 0 {
+    if bundle.duration > 0 {
       data.append(
-        .duration(.init(payload: .init(body: .init(stringLiteral: formatImmichDuration(bundle.asset.duration))))))
+        .duration(.init(payload: .init(body: .init(stringLiteral: formatImmichDuration(bundle.duration))))))
     }
 
     if let livePhotoId {
