@@ -37,7 +37,7 @@ private let assetKeywordQuery = """
     INNER JOIN ZKEYWORD as keyword ON keyword.Z_PK=kwfk.Z_52KEYWORDS
   """
 
-private struct AssetInfo {
+struct AssetInfo {
   let title: String?
   let caption: String?
   init(title: String?, caption: String?) {
@@ -131,10 +131,10 @@ public struct PhotosExporter {
     self.exportConcurrency = max(1, exportConcurrency)
   }
 
-  public func generateBundleStats(_ bundles: [AssetBundle]) -> String {
+  public static func generateBundleStats(_ bundles: [AssetBundle]) -> String {
     let livePhotoCount = bundles.filter({ b in b.resources[.livephoto] != nil }).count
     let editedCount = bundles.filter({ $0.resources[.edited] != nil }).count
-    let videoCount = bundles.filter({ $0.asset.mediaType == .video }).count
+    let videoCount = bundles.filter({ $0.mediaType == .video }).count
     return """
         \(bundles.count) new/updated assets:
           \(livePhotoCount) Live Photos
@@ -160,7 +160,7 @@ public struct PhotosExporter {
     Self.log.progress(
       """
       Delta Export Contents:
-        \(generateBundleStats(bundles))
+        \(Self.generateBundleStats(bundles))
         \(changes.deletedAssetIds.count) deleted assets
         \(albums.count) new/updated albums
         \(changes.deletedAlbumIds.count) deleted albums
@@ -216,7 +216,7 @@ public struct PhotosExporter {
     return resources.first { $0.type == type }
   }
 
-  private func fetchAllKeywords(_ db: String) async -> Set<String>? {
+  func fetchAllKeywords(_ db: String) async -> Set<String>? {
     do {
       var allKeywords: Set<String> = []
       let cursor: SQLite.Cursor<KeywordRow> = try SQLite.openCursor(dbPath: db, query: allKeywordQuery)
@@ -270,7 +270,7 @@ public struct PhotosExporter {
     return nil
   }
 
-  private func collectKeywords(db: String, uuidMap: [String: String]) async -> [PhotosKeyword]? {
+  func collectKeywords(db: String, uuidMap: [String: String]) async -> [PhotosKeyword]? {
     Self.log.progress("Fetching Keywords for export")
     let allKeywords = await fetchAllKeywords(db)
     guard let allKeywords else {
@@ -286,7 +286,7 @@ public struct PhotosExporter {
     }
   }
 
-  private func fetchAssetInfo(db: String, uuidMap: [String: String]) async -> [String: AssetInfo]? {
+  func fetchAssetInfo(db: String, uuidMap: [String: String]) async -> [String: AssetInfo]? {
     Self.log.progress("Fetching asset metadata from Photos DB")
     var assetDescriptions: [String: AssetInfo] = [:]
     var skippedCount = 0
@@ -477,6 +477,16 @@ public struct PhotosExporter {
         cloudIdentifier: cloudId,
         resources: resources,
         burstIdentifier: asset.burstIdentifier,
+        localIdentifier: asset.localIdentifier,
+        mediaType: asset.mediaType,
+        isFavorite: asset.isFavorite,
+        latitude: asset.location?.coordinate.latitude,
+        longitude: asset.location?.coordinate.longitude,
+        creationDate: asset.creationDate ?? Date(),
+        modificationDate: asset.modificationDate ?? (asset.creationDate ?? Date()),
+        duration: asset.duration,
+        mediaSubtypes: asset.mediaSubtypes,
+        hasAdjustments: asset.hasAdjustments,
         title: info?.title,
         caption: info?.caption
       )
@@ -484,10 +494,21 @@ public struct PhotosExporter {
   }
 
   private func shouldExport(_ asset: PHAsset, config: PhotosExportConfig) -> Bool {
-    guard asset.burstIdentifier != nil else { return true }
-    return asset.burstSelectionTypes == .userPick
-      || config.includeBursts == .all
-      || (config.includeBursts == .selected && asset.burstSelectionTypes == .autoPick)
+    Self.shouldExportBurst(
+      burstIdentifier: asset.burstIdentifier,
+      selectionTypes: asset.burstSelectionTypes,
+      includeBursts: config.includeBursts)
+  }
+
+  /// Value-typed burst filter: non-burst assets always export; bursts export when
+  /// user-picked, when all bursts are included, or when `selected` also admits auto-picks.
+  static func shouldExportBurst(
+    burstIdentifier: String?, selectionTypes: PHAssetBurstSelectionType, includeBursts: BurstType
+  ) -> Bool {
+    guard burstIdentifier != nil else { return true }
+    return selectionTypes == .userPick
+      || includeBursts == .all
+      || (includeBursts == .selected && selectionTypes == .autoPick)
   }
 
   private func buildFetchOptions(config: PhotosExportConfig) -> PHFetchOptions {

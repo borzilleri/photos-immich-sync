@@ -39,7 +39,7 @@ public enum ExportError: Error {
 /// `cancelDataRequest`. The resource path additionally records the first
 /// `FileHandle.write(contentsOf:)` failure (H3) so it can be surfaced through
 /// the continuation.
-private final class PhotosRequestState: @unchecked Sendable {
+final class PhotosRequestState: @unchecked Sendable {
   private let lock = NSLock()
   private var requestID_: Int32? = nil
   private var continuation_: CheckedContinuation<Void, Error>? = nil
@@ -129,9 +129,14 @@ public struct FileService {
   let dataDir: URL
 
   public init() throws {
-    self.workDir = try FileService.makeTempDir()
-    self.dataDir = try FileService.makeStorageDir()
-    self.changeTokenFile = self.dataDir.appendingPathComponent(CHANGE_TOKEN_FILE, isDirectory: false)
+    self.init(workDir: try FileService.makeTempDir(), dataDir: try FileService.makeStorageDir())
+  }
+
+  /// Test Constructor, allows injecting directories for testing purpose. Assumes both directories already exist.
+  init(workDir: URL, dataDir: URL) {
+    self.workDir = workDir
+    self.dataDir = dataDir
+    self.changeTokenFile = dataDir.appendingPathComponent(CHANGE_TOKEN_FILE, isDirectory: false)
   }
 
   internal static func makeTempDir() throws -> URL {
@@ -185,7 +190,7 @@ public struct FileService {
     try? FileManager.default.removeItem(at: self.workDir)
   }
 
-  func convertError(error: Error, filename: String) -> ExportError {
+  static func convertError(error: Error, filename: String) -> ExportError {
     let nsError = error as NSError
 
     // Check for PHPhotosErrorDomain errors
@@ -252,7 +257,7 @@ public struct FileService {
   private func canRetryAfterFailure(_ error: Error, filename: String) -> Bool {
     if error is TimeoutError { return true }
     if let export = error as? ExportError { return export.canRetry }
-    return convertError(error: error, filename: filename).canRetry
+    return Self.convertError(error: error, filename: filename).canRetry
   }
 
   private func removePartialFile(at url: URL) {

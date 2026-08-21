@@ -61,16 +61,30 @@ public struct FullPhotosExport {
 }
 
 public struct AssetBundle: CustomStringConvertible {
+  /// Live PhotoKit handle, needed for resource downloads.
+  /// All other reads should go through values below.
   let asset: PHAsset
   let cloudIdentifier: String?
   let resources: [AssetType: PHAssetResource]
   let burstIdentifier: String?
 
+  // Value snapshots of PHAsset fields (captured at bundle creation time)
+  let localIdentifier: String
+  let mediaType: PHAssetMediaType
+  let isFavorite: Bool
+  let latitude: Double?
+  let longitude: Double?
+  let creationDate: Date
+  let modificationDate: Date
+  let duration: TimeInterval
+  let mediaSubtypes: PHAssetMediaSubtype
+  let hasAdjustments: Bool
+
   var title: String? = nil
   var caption: String? = nil
 
   public func getAssetIdentifier(for type: AssetType) -> String {
-    return type.assetIdentifier(id: asset.localIdentifier)
+    return type.assetIdentifier(id: localIdentifier)
   }
 
   public func getImmichDescription() -> String? {
@@ -91,7 +105,7 @@ public struct AssetBundle: CustomStringConvertible {
 
   public var description: String {
     return
-      "AsstBundle(cloudId:\(cloudIdentifier ?? "nil"); localId:\(asset.localIdentifier); type:\(asset.mediaType); "
+      "AsstBundle(cloudId:\(cloudIdentifier ?? "nil"); localId:\(localIdentifier); type:\(mediaType); "
       + "resources:\(resources.keys.map(\.rawValue)); title:\(title ?? "-"); caption:\(caption ?? "-"))"
   }
 }

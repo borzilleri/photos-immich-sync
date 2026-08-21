@@ -45,7 +45,7 @@ public struct AssetMetadataValue: Decodable, Sendable {
     if let cloudIdentifier = bundle.cloudIdentifier, let phAssetCloudIdentifier {
       return phAssetCloudIdentifier == cloudIdentifier
     }
-    return phAssetLocalIdentifier == bundle.asset.localIdentifier
+    return phAssetLocalIdentifier == bundle.localIdentifier
   }
 
   public func assetIdentifier() -> String? {
@@ -94,29 +94,20 @@ final public class MetadataApiClient: Sendable {
 
   private static let log = Log.forCategory("MetadataAPI")
 
+  /// Executes one HTTP request. Production uses the retained AsyncHTTPClient; tests
+  /// inject a stub.
+  typealias HTTPExecutor = @Sendable (HTTPClientRequest, NIODeadline) async throws -> HTTPClientResponse
+
   private let baseURLString: String
   private let apiKey: String
-  private let httpClient: HTTPClient
+  private let executor: HTTPExecutor
   private let limiter: AsyncSemaphore
   private let requestTimeout: TimeAmount?
   private let retryAttempts: Int
 
-  public init(_ config: ImmichApiConfig) throws {
-    let trimmed = config.metadataApiUrl.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty,
-      let baseURL = URL(string: trimmed),
-      let scheme = baseURL.scheme,
-      scheme == "http" || scheme == "https",
-      baseURL.host != nil
-    else {
-      throw MetadataApiError.invalidServerURL(config.metadataApiUrl)
-    }
-    // Normalize away trailing slashes so paths join cleanly
-    var normalized = trimmed
-    while normalized.hasSuffix("/") { normalized.removeLast() }
-    self.baseURLString = normalized
-    self.apiKey = config.apiKey
-    self.retryAttempts = max(1, config.retryAttempts)
+  public convenience init(_ config: ImmichApiConfig) throws {
+    // Validate before creating the HTTPClient so a bad URL doesn't leak a retained client.
+    _ = try Self.validateAndNormalizeURL(config.metadataApiUrl)
 
     var httpConfig = HTTPClient.Configuration.singletonConfiguration
     httpConfig.timeout.connect = config.connectTimeout.toTimeAmount()
@@ -129,10 +120,39 @@ final public class MetadataApiClient: Sendable {
       configuration: httpConfig
     )
     retainedMetadataHTTPClients.withLockedValue { $0.append(httpClient) }
-    self.httpClient = httpClient
 
+    try self.init(
+      config,
+      executor: { request, deadline in
+        try await httpClient.execute(request, deadline: deadline)
+      })
+  }
+
+  /// Test Constructor, allows injecting mocked dependencies
+  init(_ config: ImmichApiConfig, executor: @escaping HTTPExecutor) throws {
+    self.baseURLString = try Self.validateAndNormalizeURL(config.metadataApiUrl)
+    self.apiKey = config.apiKey
+    self.retryAttempts = max(1, config.retryAttempts)
+    self.executor = executor
     self.limiter = AsyncSemaphore(maxConcurrentTasks: max(1, config.maxConcurrentRequests))
     self.requestTimeout = config.requestTimeout.map({ $0.toTimeAmount() })
+  }
+
+  /// Validates the configured metadata API URL and normalizes away trailing slashes
+  /// so paths join cleanly.
+  static func validateAndNormalizeURL(_ raw: String) throws -> String {
+    let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty,
+      let baseURL = URL(string: trimmed),
+      let scheme = baseURL.scheme,
+      scheme == "http" || scheme == "https",
+      baseURL.host != nil
+    else {
+      throw MetadataApiError.invalidServerURL(raw)
+    }
+    var normalized = trimmed
+    while normalized.hasSuffix("/") { normalized.removeLast() }
+    return normalized
   }
 
   // MARK: - Public API
@@ -190,12 +210,12 @@ final public class MetadataApiClient: Sendable {
   }
 
   private func execute(path: String, query: [URLQueryItem]) async throws -> ByteBuffer {
-    let urlString = try makeURL(path: path, query: query)
+    let urlString = try Self.makeURL(base: baseURLString, path: path, query: query)
     var request = HTTPClientRequest(url: urlString)
     request.headers.add(name: "x-api-key", value: apiKey)
     let deadline: NIODeadline = requestTimeout.map { .now() + $0 } ?? .distantFuture
     return try await limiter.withSlot {
-      let response = try await self.httpClient.execute(request, deadline: deadline)
+      let response = try await self.executor(request, deadline)
       let status = Int(response.status.code)
       let body = try await response.body.collect(upTo: Self.MAX_BODY)
       guard (200..<300).contains(status) else {
@@ -205,9 +225,9 @@ final public class MetadataApiClient: Sendable {
     }
   }
 
-  private func makeURL(path: String, query: [URLQueryItem]) throws -> String {
-    guard var components = URLComponents(string: baseURLString + path) else {
-      throw MetadataApiError.invalidServerURL(baseURLString + path)
+  static func makeURL(base: String, path: String, query: [URLQueryItem]) throws -> String {
+    guard var components = URLComponents(string: base + path) else {
+      throw MetadataApiError.invalidServerURL(base + path)
     }
     if !query.isEmpty {
       components.percentEncodedQueryItems = query.map {
@@ -217,7 +237,7 @@ final public class MetadataApiClient: Sendable {
       }
     }
     guard let url = components.string else {
-      throw MetadataApiError.invalidServerURL(baseURLString + path)
+      throw MetadataApiError.invalidServerURL(base + path)
     }
     return url
   }
@@ -244,7 +264,7 @@ final public class MetadataApiClient: Sendable {
     preconditionFailure("unreachable: withRetry")
   }
 
-  private static func canRetry(_ error: Error) -> Bool {
+  static func canRetry(_ error: Error) -> Bool {
     if error is CancellationError { return false }
     if error is DecodingError { return false }
     if case MetadataApiError.invalidPagination = error { return false }

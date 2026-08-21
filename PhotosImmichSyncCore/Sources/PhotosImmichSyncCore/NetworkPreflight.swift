@@ -16,14 +16,24 @@ public enum NetworkPreflight {
   fileprivate static let log = Log.forCategory("NetworkPreflight")
   public static let defaultTimeout = Duration.seconds(30)
 
-  public static func warmUpLocalNetwork(serverURL: String, timeout: Duration = defaultTimeout) async {
+  /// Derives the probe endpoint from a server URL: explicit port, or the scheme
+  /// default (443 for https, 80 otherwise). Nil when the URL has no host/scheme or
+  /// the port is out of range.
+  static func probeEndpoint(for serverURL: String) -> (host: String, port: UInt16)? {
     let trimmed = serverURL.trimmingCharacters(in: .whitespacesAndNewlines)
     guard let url = URL(string: trimmed), let host = url.host, let scheme = url.scheme else {
-      // The URL was already validated when constructing the client; nothing to probe.
-      return
+      return nil
     }
     let port = url.port ?? (scheme == "https" ? 443 : 80)
-    guard let portValue = UInt16(exactly: port), let nwPort = NWEndpoint.Port(rawValue: portValue) else {
+    guard let portValue = UInt16(exactly: port) else { return nil }
+    return (host, portValue)
+  }
+
+  public static func warmUpLocalNetwork(serverURL: String, timeout: Duration = defaultTimeout) async {
+    guard let (host, port) = probeEndpoint(for: serverURL),
+      let nwPort = NWEndpoint.Port(rawValue: port)
+    else {
+      // The URL was already validated when constructing the client; nothing to probe.
       return
     }
 

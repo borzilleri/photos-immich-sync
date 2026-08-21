@@ -21,7 +21,7 @@ public enum PhotosAuthorizationError: Error, CustomStringConvertible {
 }
 
 public struct PhotosCore {
-  private static func validate(
+  static func validate(
     _ status: PHAuthorizationStatus,
     notDeterminedError: PhotosAuthorizationError?
   ) throws {
