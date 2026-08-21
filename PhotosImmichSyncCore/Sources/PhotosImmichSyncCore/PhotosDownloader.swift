@@ -71,6 +71,11 @@ public struct PhotosDownloader {
     }
   }
 
+  /// Names an edited render after its original: `IMG_1.HEIC` -> `IMG_1_edited.jpeg`.
+  static func editedFilename(original: String, ext: String) -> String {
+    "\((original as NSString).deletingPathExtension)_edited.\(ext)"
+  }
+
   private func downloadSingleResource(
     _ resource: PHAssetResource, type: AssetType, asset: PHAsset
   ) async throws -> ResourceFile {
@@ -82,8 +87,7 @@ public struct PhotosDownloader {
       let (hash, resultURL) = try await fileService.downloadAndHashImage(
         asset, to: destination, withRetry: retry
       )
-      let filename =
-        "\((resource.originalFilename as NSString).deletingPathExtension)_edited.\(resultURL.pathExtension)"
+      let filename = Self.editedFilename(original: resource.originalFilename, ext: resultURL.pathExtension)
       return ResourceFile(
         url: resultURL,
         assetType: type,

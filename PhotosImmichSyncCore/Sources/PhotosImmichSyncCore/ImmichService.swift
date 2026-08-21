@@ -736,13 +736,38 @@ public class ImmichService {
     return newId
   }
 
+  /// Routing decision for one asset resource, derived from Immich's bulk-upload hash
+  /// check plus whether the asset identifier is already tracked in the sidecar.
+  enum ResourceSyncAction: Equatable {
+    case uploadNew
+    case copy
+    case updateInfo(immichId: String)
+    case updateInfoUnresolvable
+    case rejectedUnknown
+  }
+
+  static func resourceSyncAction(
+    hashCheck: Components.Schemas.AssetBulkUploadCheckResult?, knownAsset: Bool
+  ) -> ResourceSyncAction {
+    guard let hashCheck else { return .uploadNew }
+    if hashCheck.action == .accept {
+      return knownAsset ? .copy : .uploadNew
+    }
+    if hashCheck.action == .reject && hashCheck.reason == .duplicate {
+      guard let id = hashCheck.assetId else { return .updateInfoUnresolvable }
+      return .updateInfo(immichId: id)
+    }
+    return .rejectedUnknown
+  }
+
   func syncAssetResource(
     hashCheck: Components.Schemas.AssetBulkUploadCheckResult?, knownAsset: Bool, bundle: AssetBundle, type: AssetType,
     resourceFile: ResourceFile, livePhotoId: String?
   ) async -> String? {
     var immichAssetId: String? = nil
 
-    if hashCheck == nil || (hashCheck!.action == .accept && !knownAsset) {
+    switch Self.resourceSyncAction(hashCheck: hashCheck, knownAsset: knownAsset) {
+    case .uploadNew:
       // Hash check is good (or missing), and we don't know about the asset already
       // So this is a net-new file, and we can cleanly upload it.
       immichAssetId = await self.uploadNewFile(
@@ -751,7 +776,7 @@ public class ImmichService {
         bundle: bundle,
         livePhotoId: livePhotoId
       )
-    } else if hashCheck!.action == .accept && knownAsset {
+    case .copy:
       // Immich thinks it's a new file, but we know about the asset id already.
       // It's possible the underlying asset changed somehow. This is _odd_, but handlable.
       // Perform a copy operation.
@@ -761,24 +786,22 @@ public class ImmichService {
         bundle: bundle,
         livePhotoId: livePhotoId
       )
-    } else if hashCheck!.action == .reject && hashCheck!.reason == .duplicate {
+    case .updateInfo(let id):
       // Immich says it has the file, and the identifier matches, so this is just a metadata update.
-      guard let id = hashCheck?.assetId else {
-        Self.log.error(
-          "During Asset Sync: Known duplicate found, attempted to update asset info, but could not resolve ImmichId",
-          stage: .uploadAsset,
-          context: Self.errorContext(
-            (.localIdentifier, bundle.localIdentifier),
-            (.cloudIdentifier, bundle.cloudIdentifier),
-            (.assetType, type.rawValue),
-            (.filename, resourceFile.originalFileName)
-          )
-        )
-        return nil
-      }
       await self.updateFileInfo(id, bundle: bundle, type: type, livePhotoId: livePhotoId)
       immichAssetId = id
-    } else {
+    case .updateInfoUnresolvable:
+      Self.log.error(
+        "During Asset Sync: Known duplicate found, attempted to update asset info, but could not resolve ImmichId",
+        stage: .uploadAsset,
+        context: Self.errorContext(
+          (.localIdentifier, bundle.localIdentifier),
+          (.cloudIdentifier, bundle.cloudIdentifier),
+          (.assetType, type.rawValue),
+          (.filename, resourceFile.originalFileName)
+        )
+      )
+    case .rejectedUnknown:
       Self.log.warning(
         "During Asset Sync: Immich rejected upload with unknown reason.",
         stage: .uploadAsset,
@@ -1002,7 +1025,7 @@ public class ImmichService {
     }
   }
 
-  private func buildKeywordMap(keywords: [PhotosKeyword], tagPrefix: String) -> [String: PhotosKeyword] {
+  static func buildKeywordMap(keywords: [PhotosKeyword], tagPrefix: String) -> [String: PhotosKeyword] {
     var map: [String: PhotosKeyword] = [:]
     for keyword in keywords where !keyword.assetIds.isEmpty {
       map["\(tagPrefix)\(keyword.keyword)"] = keyword
@@ -1010,7 +1033,20 @@ public class ImmichService {
     return map
   }
 
-  private func shouldDeleteTag(tagValue: String, desiredTagValues: Set<String>) -> Bool {
+  /// Computes tag membership changes for one tag. When the remote fetch failed we
+  /// only ever add — never untag — and only assets in `changedIds` are untagged so a
+  /// partial sync can't strip tags from unchanged assets.
+  static func tagMembershipChanges(
+    desired: Set<String>, remote: Set<String>, changedIds: Set<String>, remoteFetched: Bool
+  ) -> (toTag: [String], toUntag: [String]) {
+    guard remoteFetched else { return (Array(desired), []) }
+    return (
+      toTag: Array(desired.subtracting(remote)),
+      toUntag: Array(remote.intersection(changedIds).subtracting(desired))
+    )
+  }
+
+  static func shouldDeleteTag(tagValue: String, desiredTagValues: Set<String>) -> Bool {
     guard !desiredTagValues.contains(tagValue) else {
       return false
     }
@@ -1065,7 +1101,7 @@ public class ImmichService {
       return
     }
 
-    let keywordsByTagValue = buildKeywordMap(keywords: keywords, tagPrefix: tagPrefix)
+    let keywordsByTagValue = Self.buildKeywordMap(keywords: keywords, tagPrefix: tagPrefix)
     let desiredTagValues = Set(keywordsByTagValue.keys)
     // Deletion must retain every tag whose keyword still exists in Photos — not only those
     // whose assets changed this run. In a delta, buildKeywordMap yields empty assetIds for
@@ -1094,7 +1130,7 @@ public class ImmichService {
       // Keep ancestor tags for nested desired tags.
       let tagsToDelete =
         remoteTagValues
-        .filter({ shouldDeleteTag(tagValue: $0, desiredTagValues: retainedTagValues) })
+        .filter({ Self.shouldDeleteTag(tagValue: $0, desiredTagValues: retainedTagValues) })
         .sorted()
       await withDiscardingTaskGroup { group in
         for tagValue in tagsToDelete {
@@ -1163,15 +1199,12 @@ public class ImmichService {
             )
           }
 
-          let assetsToTag: [String]
-          let assetsToUntag: [String]
-          if remoteAssetsFetched {
-            assetsToTag = Array(desiredImmichIds.subtracting(remoteTaggedAssetIds))
-            assetsToUntag = Array(remoteTaggedAssetIds.intersection(changedIds).subtracting(desiredImmichIds))
-          } else {
-            assetsToTag = Array(desiredImmichIds)
-            assetsToUntag = []
-          }
+          let (assetsToTag, assetsToUntag) = Self.tagMembershipChanges(
+            desired: desiredImmichIds,
+            remote: remoteTaggedAssetIds,
+            changedIds: changedIds,
+            remoteFetched: remoteAssetsFetched
+          )
 
           if !assetsToTag.isEmpty {
             do {
@@ -1270,7 +1303,7 @@ public class ImmichService {
     do {
       // Create the album and add our assets to it.
       let _ = try await self.client.createAlbum(
-        albumName, assetIds: idsToAdd, description: client.generateAlbumTag(album.localIdentifier))
+        albumName, assetIds: idsToAdd, description: ImmichApiClient.generateAlbumTag(album.localIdentifier))
       Self.log.progress("\(albumName): Created with \(idsToAdd.count)/\(album.assetIds.count) assets.")
     } catch {
       Self.log.error(
@@ -1451,7 +1484,7 @@ public class ImmichService {
     }
     let immichAlbumMap = Dictionary(
       immichAlbums.compactMap { album -> (String, Components.Schemas.AlbumResponseDto)? in
-        guard let marker = client.extractAlbumTagValue(album.description) else { return nil }
+        guard let marker = ImmichApiClient.extractAlbumTagValue(album.description) else { return nil }
         return (marker, album)
       }
     ) { existing, duplicate in
@@ -1499,7 +1532,7 @@ public class ImmichService {
     }
     var deleted = 0
     for album in albums {
-      guard let albumLocalIdentifier = client.extractAlbumTagValue(album.description),
+      guard let albumLocalIdentifier = ImmichApiClient.extractAlbumTagValue(album.description),
         predicate(albumLocalIdentifier)
       else { continue }
       do {

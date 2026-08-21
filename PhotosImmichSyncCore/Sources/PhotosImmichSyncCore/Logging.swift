@@ -101,11 +101,11 @@ final class LogSink: @unchecked Sendable {
 
   private let lock = OSAllocatedUnfairLock(initialState: State())
 
-  fileprivate func configure(verbosity: Verbosity) {
+  func configure(verbosity: Verbosity) {
     lock.withLock { $0.verbosity = verbosity }
   }
 
-  fileprivate func summary() -> RunSummary {
+  func summary() -> RunSummary {
     lock.withLock { s in
       RunSummary(errors: s.errors, warnings: s.warnings)
     }
@@ -115,7 +115,7 @@ final class LogSink: @unchecked Sendable {
   /// stdout/stderr depending on the configured verbosity; bumps the `RunSummary`
   /// counter for the two tracked levels (`.error` -> `errors`, `.warning` ->
   /// `warnings`).
-  fileprivate func emit(
+  func emit(
     level: EmitLevel,
     category: String,
     osLogger: Logger,
@@ -161,7 +161,7 @@ final class LogSink: @unchecked Sendable {
     }
   }
 
-  private static func shouldEmitToConsole(level: EmitLevel, verbosity: Verbosity) -> Bool {
+  static func shouldEmitToConsole(level: EmitLevel, verbosity: Verbosity) -> Bool {
     switch level {
     case .error: return true
     case .warning: return verbosity >= .normal
@@ -172,7 +172,7 @@ final class LogSink: @unchecked Sendable {
     }
   }
 
-  private static func formatBase(
+  static func formatBase(
     category: String,
     level: EmitLevel,
     message: String,
@@ -200,7 +200,7 @@ final class LogSink: @unchecked Sendable {
     return line
   }
 
-  private static func formatDetail(sourceLocation: String?, cause: Error?) -> String {
+  static func formatDetail(sourceLocation: String?, cause: Error?) -> String {
     var out = ""
     if let sourceLocation {
       out += "\n>> in \(sourceLocation)"

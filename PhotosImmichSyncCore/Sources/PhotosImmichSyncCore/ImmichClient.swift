@@ -75,7 +75,7 @@ private struct ApiKeyMiddleware: ClientMiddleware {
 
 // This custom transcoder tries to decode dates with fractional second first,
 // Then fall back to trying without fractional seconds.
-private struct CustomDateTranscoder: DateTranscoder {
+struct CustomDateTranscoder: DateTranscoder {
   public func encode(_ date: Date) throws -> String {
     return DATE_FMT_WITH_FRACTIONAL_SECONDS.format(date)
   }
@@ -136,18 +136,11 @@ final public class ImmichApiClient: Sendable {
   private static let log = Log.forCategory("ImmichAPI")
   private let client: Client
   private let retryAttempts: Int
+  private let backoffSleep: @Sendable (Duration) async throws -> Void
 
-  public init(_ config: ImmichApiConfig) throws {
-    let trimmed = config.url.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty,
-      let baseURL = URL(string: trimmed),
-      let scheme = baseURL.scheme,
-      scheme == "http" || scheme == "https",
-      baseURL.host != nil
-    else {
-      throw ImmichConfigError.invalidServerURL(config.url)
-    }
-    retryAttempts = max(1, config.retryAttempts)
+  public convenience init(_ config: ImmichApiConfig) throws {
+    // Validate before creating the HTTPClient so a bad URL doesn't leak a retained client.
+    _ = try Self.validateServerURL(config.url)
 
     var httpConfig = HTTPClient.Configuration.singletonConfiguration
     httpConfig.timeout.connect = config.connectTimeout.toTimeAmount()
@@ -162,21 +155,46 @@ final public class ImmichApiClient: Sendable {
     // Retain for the process lifetime so it is never shut down or deinited (see note above).
     retainedHTTPClients.withLockedValue { $0.append(httpClient) }
 
-    let limiter = AsyncSemaphore(maxConcurrentTasks: max(1, config.maxConcurrentRequests))
     let deadline = config.requestTimeout.map({ $0.toTimeAmount() }) ?? .nanoseconds(.max)
     let transportConfig = AsyncHTTPClientTransport.Configuration(
       client: httpClient,
       timeout: deadline
     )
+    try self.init(config, transport: AsyncHTTPClientTransport(configuration: transportConfig))
+  }
+
+  /// Test constructor to allow injection of mocked internal dependencies.
+  init(
+    _ config: ImmichApiConfig,
+    transport: any ClientTransport,
+    sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
+  ) throws {
+    let baseURL = try Self.validateServerURL(config.url)
+    retryAttempts = max(1, config.retryAttempts)
+    backoffSleep = sleep
+    let limiter = AsyncSemaphore(maxConcurrentTasks: max(1, config.maxConcurrentRequests))
     self.client = Client(
       serverURL: baseURL,
       configuration: .init(dateTranscoder: CustomDateTranscoder()),
-      transport: AsyncHTTPClientTransport(configuration: transportConfig),
+      transport: transport,
       middlewares: [
         ConcurrencyLimitMiddleware(limiter: limiter),
         ApiKeyMiddleware(apiKey: config.apiKey),
       ]
     )
+  }
+
+  static func validateServerURL(_ raw: String) throws -> URL {
+    let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty,
+      let baseURL = URL(string: trimmed),
+      let scheme = baseURL.scheme,
+      scheme == "http" || scheme == "https",
+      baseURL.host != nil
+    else {
+      throw ImmichConfigError.invalidServerURL(raw)
+    }
+    return baseURL
   }
 
   private func undocumentedToError(status: Int, result: UndocumentedPayload) async throws -> ImmichApiError {
@@ -199,7 +217,7 @@ final public class ImmichApiClient: Sendable {
     }
   }
 
-  private func canRetryAfterClientFailure(_ error: Error) -> Bool {
+  static func canRetryAfterClientFailure(_ error: Error) -> Bool {
     var error = error
     // Unwrap OpenAPI Client Errors into their underlying error.
     while let clientError = error as? ClientError {
@@ -251,7 +269,7 @@ final public class ImmichApiClient: Sendable {
       do {
         return try await work()
       } catch {
-        if !canRetryAfterClientFailure(error) || attempt == self.retryAttempts {
+        if !Self.canRetryAfterClientFailure(error) || attempt == self.retryAttempts {
           logFinalFailure(operation, error: error)
           throw error
         }
@@ -262,7 +280,7 @@ final public class ImmichApiClient: Sendable {
           cause: error
         )
         do {
-          try await Task.sleep(for: backoff)
+          try await backoffSleep(backoff)
         } catch {
           throw error
         }
@@ -800,11 +818,11 @@ final public class ImmichApiClient: Sendable {
     }
   }
 
-  func generateAlbumTag(_ value: String) -> String {
+  static func generateAlbumTag(_ value: String) -> String {
     return "#\(APP_NAME):\(value)#"
   }
 
-  func extractAlbumTagValue(_ tag: String) -> String? {
+  static func extractAlbumTagValue(_ tag: String) -> String? {
     if let match = tag.firstMatch(of: /#photos-immich-sync:(.+?)#/) {
       return "\(match.1)"
     }

@@ -52,7 +52,10 @@ let package = Package(
     ),
     .testTarget(
       name: "PhotosImmichSyncCoreTests",
-      dependencies: ["PhotosImmichSyncCore"],
+      dependencies: [
+        "PhotosImmichSyncCore",
+        .product(name: "Yams", package: "Yams"),
+      ],
       swiftSettings: swiftSettings
     ),
   ],

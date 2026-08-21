@@ -61,7 +61,9 @@ public struct FullPhotosExport {
 }
 
 public struct AssetBundle: CustomStringConvertible {
-  let asset: PHAsset  // Temporary; will be removed after all usages are updated
+  /// Live PhotoKit handle, needed for resource downloads.
+  /// All other reads should go through values below.
+  let asset: PHAsset
   let cloudIdentifier: String?
   let resources: [AssetType: PHAssetResource]
   let burstIdentifier: String?
