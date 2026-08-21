@@ -1,6 +1,5 @@
 import AsyncHTTPClient
 import Foundation
-import NIOConcurrencyHelpers
 import NIOCore
 import NIOHTTP1
 import Photos
@@ -71,13 +70,6 @@ private struct MetadataPage: Decodable {
   let total: Int
 }
 
-// Retriable low-level transport errors
-private let RETRYABLE_HTTP_CLIENT_ERRORS: [HTTPClientError] = [.deadlineExceeded, .readTimeout, .writeTimeout]
-
-// Global Mutable State, retained for the process lifetime so the HTTPClient is never
-// shut down or deinited.
-private let retainedMetadataHTTPClients = NIOLockedValueBox<[HTTPClient]>([])
-
 final public class MetadataApiClient: Sendable {
   private static let MAX_BODY = 8 * 1024 * 1024
   private static let PAGE_SIZE = 1000
@@ -94,46 +86,48 @@ final public class MetadataApiClient: Sendable {
 
   private static let log = Log.forCategory("MetadataAPI")
 
-  /// Executes one HTTP request. Production uses the retained AsyncHTTPClient; tests
+  /// Executes one HTTP request. Production uses the owned AsyncHTTPClient; tests
   /// inject a stub.
   typealias HTTPExecutor = @Sendable (HTTPClientRequest, NIODeadline) async throws -> HTTPClientResponse
 
   private let baseURLString: String
   private let apiKey: String
   private let executor: HTTPExecutor
+  private let backoffSleep: @Sendable (Duration) async throws -> Void
   private let limiter: AsyncSemaphore
   private let requestTimeout: TimeAmount?
   private let retryAttempts: Int
+  /// The HTTPClient this instance built (and must shut down). Nil for mock-backed clients.
+  private let ownedHTTPClient: HTTPClient?
 
   public convenience init(_ config: ImmichApiConfig) throws {
-    // Validate before creating the HTTPClient so a bad URL doesn't leak a retained client.
+    // Validate before creating the HTTPClient: an orphaned, never-shut-down
+    // HTTPClient crashes on deinit.
     _ = try Self.validateAndNormalizeURL(config.metadataApiUrl)
 
-    var httpConfig = HTTPClient.Configuration.singletonConfiguration
-    httpConfig.timeout.connect = config.connectTimeout.toTimeAmount()
-    let idleTimeout = config.connectionIdleTimeout.map({ $0.toTimeAmount() })
-    httpConfig.timeout.read = idleTimeout
-    httpConfig.timeout.write = idleTimeout
-    httpConfig.connectionPool.concurrentHTTP1ConnectionsPerHostSoftLimit = max(1, config.maxConcurrentRequests)
-    let httpClient = HTTPClient(
-      eventLoopGroup: HTTPClient.defaultEventLoopGroup,
-      configuration: httpConfig
-    )
-    retainedMetadataHTTPClients.withLockedValue { $0.append(httpClient) }
+    let httpClient = HTTPClient.make(for: config)
 
     try self.init(
       config,
       executor: { request, deadline in
         try await httpClient.execute(request, deadline: deadline)
-      })
+      },
+      ownedHTTPClient: httpClient)
   }
 
   /// Test Constructor, allows injecting mocked dependencies
-  init(_ config: ImmichApiConfig, executor: @escaping HTTPExecutor) throws {
+  init(
+    _ config: ImmichApiConfig,
+    executor: @escaping HTTPExecutor,
+    sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
+    ownedHTTPClient: HTTPClient? = nil
+  ) throws {
     self.baseURLString = try Self.validateAndNormalizeURL(config.metadataApiUrl)
     self.apiKey = config.apiKey
     self.retryAttempts = max(1, config.retryAttempts)
     self.executor = executor
+    self.backoffSleep = sleep
+    self.ownedHTTPClient = ownedHTTPClient
     self.limiter = AsyncSemaphore(maxConcurrentTasks: max(1, config.maxConcurrentRequests))
     self.requestTimeout = config.requestTimeout.map({ $0.toTimeAmount() })
   }
@@ -156,6 +150,12 @@ final public class MetadataApiClient: Sendable {
   }
 
   // MARK: - Public API
+
+  /// Releases the underlying HTTPClient's resources.
+  /// Should be called when a run finishes, and must be called before the class deinits
+  public func shutdown() async {
+    await ownedHTTPClient?.shutdownQuietly(log: Self.log)
+  }
 
   public func checkHealth() async -> Bool {
     do {
@@ -244,56 +244,9 @@ final public class MetadataApiClient: Sendable {
 
   // MARK: - Retry
 
-  private func withRetry<T>(_ operation: String, _ work: @escaping () async throws -> T) async throws -> T {
-    for attempt in 1...retryAttempts {
-      do {
-        return try await work()
-      } catch {
-        if !Self.canRetry(error) || attempt == retryAttempts {
-          logFinalFailure(operation, error: error)
-          throw error
-        }
-        let waitSeconds = min(attempt, 5)
-        Self.log.info(
-          "Metadata API attempt \(attempt)/\(retryAttempts) failed for \(operation); retrying after ~\(waitSeconds) seconds",
-          cause: error
-        )
-        try await Task.sleep(for: .seconds(waitSeconds))
-      }
-    }
-    preconditionFailure("unreachable: withRetry")
-  }
-
-  static func canRetry(_ error: Error) -> Bool {
-    if error is CancellationError { return false }
-    if error is DecodingError { return false }
-    if case MetadataApiError.invalidPagination = error { return false }
-    if error is TimeoutError { return true }
-    if let httpErr = error as? HTTPClientError, RETRYABLE_HTTP_CLIENT_ERRORS.contains(httpErr) { return true }
-    if let apiErr = error as? MetadataApiError, case .unknown(let status, _) = apiErr {
-      return status == 0 || status == 429 || (500..<600).contains(status)
-    }
-    if let urlError = error as? URLError {
-      switch urlError.code {
-      case .timedOut, .notConnectedToInternet, .networkConnectionLost, .cannotConnectToHost,
-        .cannotFindHost, .dnsLookupFailed:
-        return true
-      default:
-        return false
-      }
-    }
-    return false
-  }
-
-  private func logFinalFailure(_ operation: String, error: Error) {
-    if error is CancellationError || Task.isCancelled {
-      Self.log.debug("\(operation) cancelled")
-      return
-    }
-    if let apiErr = error as? MetadataApiError, case .unknown(let status, let body) = apiErr {
-      Self.log.error("Error response from \(operation): \(status) - \(body)")
-    } else {
-      Self.log.error("Error from \(operation).", cause: error)
-    }
+  private func withRetry<T>(_ operation: String, _ work: () async throws -> T) async throws -> T {
+    try await RetryPolicy.withRetry(
+      operation, label: "Metadata API", attempts: retryAttempts, log: Self.log,
+      sleep: backoffSleep, work)
   }
 }

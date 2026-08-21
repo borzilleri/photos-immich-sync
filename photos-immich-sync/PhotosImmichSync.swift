@@ -9,6 +9,13 @@ private struct Services {
   let immichClient: ImmichApiClient
   let immichService: ImmichService
   let metadataClient: MetadataApiClient
+
+  /// Shuts down the HTTP clients this stack owns. Must run on every exit path of a
+  /// sync run: an HTTPClient that deinits without shutdown crashes the process.
+  func shutdown() async {
+    await immichClient.shutdown()
+    await metadataClient.shutdown()
+  }
 }
 
 struct GlobalOptions: ParsableArguments {
@@ -42,6 +49,7 @@ extension PhotosImmichSync {
 
     func run() async throws {
       Log.configure(verbosity: Verbosity.fromFlags(quiet: global.quiet, verbose: global.verbose))
+      Log.beginRun()
       let log = Log.forCategory(APP_NAME)
       do {
         let config = try AppConfig.load(fromFile: configFile)
@@ -100,9 +108,17 @@ private func runUpdateCheck(enabled: Bool, log: CategoryLog) async {
   await VersionCheck.notifyIfUpdateAvailable(currentVersion: APP_VERSION, log: log)
 }
 
-private func makeSyncStack(config: AppConfig, fileService: FileService) throws -> Services {
+private func makeSyncStack(config: AppConfig, fileService: FileService) async throws -> Services {
   let client = try ImmichApiClient(config.immich.api)
-  let metadataClient = try MetadataApiClient(config.immich.api)
+  let metadataClient: MetadataApiClient
+  do {
+    metadataClient = try MetadataApiClient(config.immich.api)
+  } catch {
+    // The Immich client already owns a live HTTPClient; shut it down before
+    // rethrowing or its deinit would crash.
+    await client.shutdown()
+    throw error
+  }
   let downloadLimiter = AsyncSemaphore(
     maxConcurrentTasks: max(1, config.immich.assets.maxConcurrentDownloads))
   let downloader = PhotosDownloader(fileService: fileService, retry: config.photos.download.retryConfig)
@@ -176,12 +192,26 @@ private func immichDeltaSync(config: AppConfig, services: Services) async throws
   return changes.complete
 }
 
+/// Wrapper to provide a defer-like shutdown mechanism, since async methods can't defer.
+/// Used to shutdown HTTP clients after a run. (deinit without shutdown will crash)
+private func withShutdown<T>(_ services: Services, _ body: () async throws -> T) async throws -> T {
+  do {
+    let result = try await body()
+    await services.shutdown()
+    return result
+  } catch {
+    await services.shutdown()
+    throw error
+  }
+}
+
 private func runSync(
   global: GlobalOptions,
   sync: SyncOptions,
   perform: (AppConfig, Services) async throws -> Bool
 ) async throws {
   Log.configure(verbosity: Verbosity.fromFlags(quiet: global.quiet, verbose: global.verbose))
+  Log.beginRun()
   let log = Log.forCategory(APP_NAME)
   do {
     let config = try AppConfig.load(fromFile: sync.configFile)
@@ -195,21 +225,23 @@ private func runSync(
     let currentChangeToken = PhotosCore.getPersistentChangeToken()
 
     try PhotosCore.checkAuthorization(requireAuth: true, requestAuth: sync.requestAuth)
-    let services = try makeSyncStack(config: config, fileService: fileService)
+    let services = try await makeSyncStack(config: config, fileService: fileService)
 
-    // Block on the macOS Local Network prompt before any HTTP traffic. On a fresh
-    // install the first connection that triggers the prompt is dropped and times out;
-    // this waits until access is granted so the requests below succeed on the first run.
-    await NetworkPreflight.warmUpLocalNetwork(serverURL: config.immich.api.url)
+    try await withShutdown(services) {
+      // Block on the macOS Local Network prompt before any HTTP traffic. On a fresh
+      // install the first connection that triggers the prompt is dropped and times out;
+      // this waits until access is granted so the requests below succeed on the first run.
+      await NetworkPreflight.warmUpLocalNetwork(serverURL: config.immich.api.url)
 
-    let changeTokenCandidate = try await perform(config, services)
+      let changeTokenCandidate = try await perform(config, services)
 
-    let hasFatalErrors = Log.summary().hasErrors
-    if changeTokenCandidate && !hasFatalErrors {
-      try fileService.writeChangeToken(currentChangeToken)
-    }
-    if hasFatalErrors {
-      throw ExitCode.failure
+      let hasFatalErrors = Log.summary().hasErrors
+      if changeTokenCandidate && !hasFatalErrors {
+        try fileService.writeChangeToken(currentChangeToken)
+      }
+      if hasFatalErrors {
+        throw ExitCode.failure
+      }
     }
   } catch let exit as ExitCode {
     throw exit
