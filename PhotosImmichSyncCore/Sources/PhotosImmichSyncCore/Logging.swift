@@ -85,6 +85,20 @@ enum EmitLevel: Sendable {
   case trace
 }
 
+/// One structured log event, as delivered to `LogSink` observers. Carries the same
+/// pieces `emit()` renders into console/os.Logger lines, in structured form so a
+/// future daemon can persist or stream them.
+struct LogRecord: Sendable {
+  let timestamp: Date
+  let level: EmitLevel
+  let category: String
+  let message: String
+  let stage: PipelineStage?
+  let context: [LogContextKey: String]
+  let causeDescription: String?
+  let sourceLocation: String?
+}
+
 /// Singleton sink shared by every `CategoryLog`. Owns the configured `Verbosity`,
 /// the per-severity counters, and serializes writes to stdout/stderr so concurrent
 /// log calls don't interleave their bytes.
@@ -97,6 +111,7 @@ final class LogSink: @unchecked Sendable {
     var verbosity: Verbosity = .normal
     var errors: Int = 0
     var warnings: Int = 0
+    var observers: [@Sendable (LogRecord) -> Void] = []
   }
 
   private let lock = OSAllocatedUnfairLock(initialState: State())
@@ -109,6 +124,23 @@ final class LogSink: @unchecked Sendable {
     lock.withLock { s in
       RunSummary(errors: s.errors, warnings: s.warnings)
     }
+  }
+
+  /// Resets the error/warning tally so each run gets its own summary. Counters are
+  /// otherwise process-cumulative, which would poison success detection in a
+  /// long-lived process after one failed run.
+  func beginRun() {
+    lock.withLock { s in
+      s.errors = 0
+      s.warnings = 0
+    }
+  }
+
+  /// Registers an observer that receives every record `emit()` produces, regardless
+  /// of the console verbosity (which only gates stdout/stderr). Observers are invoked
+  /// synchronously on the emitting thread, outside the sink's lock.
+  func addObserver(_ observer: @escaping @Sendable (LogRecord) -> Void) {
+    lock.withLock { $0.observers.append(observer) }
   }
 
   /// Emits one log line. Always writes to `osLogger`; conditionally writes to
@@ -139,7 +171,7 @@ final class LogSink: @unchecked Sendable {
     case .trace: osLogger.debug("TRACE: \(fullLine, privacy: .public)")
     }
 
-    lock.withLock { state in
+    let observers = lock.withLock { state -> [@Sendable (LogRecord) -> Void] in
       switch level {
       case .error: state.errors += 1
       case .warning: state.warnings += 1
@@ -147,7 +179,7 @@ final class LogSink: @unchecked Sendable {
       }
 
       guard LogSink.shouldEmitToConsole(level: level, verbosity: state.verbosity) else {
-        return
+        return state.observers
       }
       let includeDetail = state.verbosity >= .debug
       let consoleLine = (includeDetail ? fullLine : baseLine) + "\n"
@@ -157,6 +189,20 @@ final class LogSink: @unchecked Sendable {
         FileHandle.standardError.write(bytes)
       case .info, .progress, .debug, .trace:
         FileHandle.standardOutput.write(bytes)
+      }
+      return state.observers
+    }
+
+    // Observers see every record regardless of console verbosity. Invoked outside the
+    // lock: an observer may itself log without deadlocking.
+    if !observers.isEmpty {
+      let record = LogRecord(
+        timestamp: Date(), level: level, category: category, message: message,
+        stage: stage, context: context,
+        causeDescription: cause.map(\.localizedDescription),
+        sourceLocation: sourceLocation)
+      for observer in observers {
+        observer(record)
       }
     }
   }
@@ -231,6 +277,16 @@ public enum Log {
 
   public static func configure(verbosity: Verbosity) {
     sink.configure(verbosity: verbosity)
+  }
+
+  /// Starts a fresh error/warning tally for the run about to begin.
+  public static func beginRun() {
+    sink.beginRun()
+  }
+
+  /// Streams every emitted record to `observer`; see `LogSink.addObserver`.
+  static func addObserver(_ observer: @escaping @Sendable (LogRecord) -> Void) {
+    sink.addObserver(observer)
   }
 
   /// Returns a `CategoryLog` handle bound to `name`. Cheap to call repeatedly;

@@ -46,7 +46,8 @@ func plainResponse(status: HTTPResponse.Status, _ body: String = "") -> Result<(
   .success((HTTPResponse(status: status), HTTPBody(body)))
 }
 
-/// Retry backoff is a no-op under mocks so retry tests run instantly.
+// Retry backoff is a no-op under both mock factories so retry tests run instantly.
+
 func makeMockedImmichClient(
   responses: [Result<(HTTPResponse, HTTPBody?), any Error>],
   extraYaml: String = ""
@@ -93,6 +94,7 @@ func makeMockedMetadataClient(
   _ handler: @escaping @Sendable (HTTPClientRequest, Int) throws -> (UInt, String)
 ) throws -> (client: MetadataApiClient, stub: RecordingHTTPStub) {
   let stub = RecordingHTTPStub(handler)
-  let client = try MetadataApiClient(makeApiConfig(extraYaml: extraYaml), executor: stub.executor())
+  let client = try MetadataApiClient(
+    makeApiConfig(extraYaml: extraYaml), executor: stub.executor(), sleep: { _ in })
   return (client, stub)
 }
