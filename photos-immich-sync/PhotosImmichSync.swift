@@ -142,9 +142,7 @@ private func makeSyncStack(config: AppConfig, fileService: FileService) async th
 /// - Our API Key is valid & properly configured
 /// - The Metadata API is reachable
 private func runPreflight(config: AppConfig, services: Services) async throws {
-  if let version = try await services.immichClient.checkServerVersion(), version.major < IMMICH_SUPPORTED_VERSION_MAJOR {
-    throw ImmichConfigError.unsupportedServerVersion(version)
-  }
+  try await services.immichClient.ensureSupportedServerVersion()
   try await services.immichClient.validateApiKey(config: config.immich)
   guard await services.metadataClient.checkHealth() else {
     throw MetadataApiError.healthCheckFailed(config.immich.api.metadataApiUrl)

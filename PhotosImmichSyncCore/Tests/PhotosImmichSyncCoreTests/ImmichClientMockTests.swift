@@ -22,12 +22,16 @@ private let ALBUM_PERMISSIONS = [
   "albumAsset.create", "albumAsset.delete",
 ]
 
-private func searchJSON(nextPage: String?) -> String {
-  let next = nextPage.map { "\"\($0)\"" } ?? "null"
+private func searchJSON(nextCursor: String?) -> String {
+  let next = nextCursor.map { "\"\($0)\"" } ?? "null"
   return """
     {"albums":{"count":0,"facets":[],"items":[],"total":0},
-     "assets":{"count":0,"facets":[],"items":[],"total":0,"nextPage":\(next)}}
+     "assets":{"count":0,"facets":[],"items":[],"total":0,"nextPage":null,"nextCursor":\(next)}}
     """
+}
+
+private func searchBody(_ body: String?) throws -> Components.Schemas.MetadataSearchDto {
+  try decodeJSON(Components.Schemas.MetadataSearchDto.self, from: try #require(body))
 }
 
 @Suite struct ImmichClientMockTests {
@@ -38,6 +42,23 @@ private func searchJSON(nextPage: String?) -> String {
 
     let request = try #require(transport.requests.first)
     #expect(request.headerFields[HTTPField.Name("X-Api-Key")!] == "test-key")
+  }
+
+  @Test func serverOlderThanMinimumIsRejected() async throws {
+    let (client, _) = try makeMockedImmichClient(responses: [
+      jsonResponse(#"{"major":3,"minor":1,"patch":9,"prerelease":0}"#)
+    ])
+    do {
+      try await client.ensureSupportedServerVersion()
+      Issue.record("expected unsupportedServerVersion")
+    } catch ImmichConfigError.unsupportedServerVersion(let version) {
+      #expect(version == SemanticVersion(major: 3, minor: 1, patch: 9))
+    }
+  }
+
+  @Test func serverAtMinimumIsAccepted() async throws {
+    let (client, _) = try makeMockedImmichClient(responses: [jsonResponse(SERVER_VERSION_JSON)])
+    try await client.ensureSupportedServerVersion()
   }
 
   @Test func undocumentedStatusBecomesApiErrorWithoutRetry() async throws {
@@ -130,34 +151,43 @@ private func searchJSON(nextPage: String?) -> String {
 
   // MARK: searchAssets pagination guards
 
-  @Test func nonNumericNextPageAborts() async throws {
-    let (client, _) = try makeMockedImmichClient(responses: [jsonResponse(searchJSON(nextPage: "abc"))])
-    do {
-      _ = try await client.searchAssets(.init())
-      Issue.record("expected invalidPagination")
-    } catch ImmichApiError.invalidPagination(let reason) {
-      #expect(reason.contains("non-numeric"))
-    }
-  }
-
-  @Test func nonAdvancingNextPageAborts() async throws {
-    let (client, _) = try makeMockedImmichClient(responses: [jsonResponse(searchJSON(nextPage: "1"))])
-    do {
-      _ = try await client.searchAssets(.init())
-      Issue.record("expected invalidPagination")
-    } catch ImmichApiError.invalidPagination(let reason) {
-      #expect(reason.contains("non-advancing"))
-    }
-  }
-
-  @Test func paginationFollowsAdvancingPagesToTheEnd() async throws {
+  @Test func repeatedCursorAborts() async throws {
     let (client, transport) = try makeMockedImmichClient(responses: [
-      jsonResponse(searchJSON(nextPage: "2")),
-      jsonResponse(searchJSON(nextPage: "3")),
-      jsonResponse(searchJSON(nextPage: nil)),
+      jsonResponse(searchJSON(nextCursor: "abc")),
+      jsonResponse(searchJSON(nextCursor: "abc")),
+    ])
+    do {
+      _ = try await client.searchAssets(.init())
+      Issue.record("expected invalidPagination")
+    } catch ImmichApiError.invalidPagination(let reason) {
+      #expect(reason.contains("repeated"))
+    }
+    #expect(transport.requests.count == 2)
+  }
+
+  // Deprecated: asserts the deprecated request fields are no longer sent.
+  @available(*, deprecated)
+  @Test func paginationFollowsCursorsToTheEnd() async throws {
+    let (client, transport) = try makeMockedImmichClient(responses: [
+      jsonResponse(searchJSON(nextCursor: "a")),
+      jsonResponse(searchJSON(nextCursor: "b")),
+      jsonResponse(searchJSON(nextCursor: nil)),
     ])
     let items = try await client.searchAssets(.init())
     #expect(items.isEmpty)
-    #expect(transport.requests.count == 3)
+    let bodies = try transport.bodies.map(searchBody)
+    #expect(bodies.map(\.cursor) == [nil, "a", "b"])
+    #expect(bodies.allSatisfy { $0.page == nil })
+  }
+
+  // Deprecated: asserts the deprecated request fields are no longer sent.
+  @available(*, deprecated)
+  @Test func searchByAlbumSendsFilter() async throws {
+    let albumId = "11111111-1111-4111-8111-111111111111"
+    let (client, transport) = try makeMockedImmichClient(responses: [jsonResponse(searchJSON(nextCursor: nil))])
+    _ = try await client.searchByAlbum(albumId)
+    let dto = try searchBody(transport.bodies.first ?? nil)
+    #expect(dto.filter?.albumIds?.any == [albumId])
+    #expect(dto.albumIds == nil)
   }
 }

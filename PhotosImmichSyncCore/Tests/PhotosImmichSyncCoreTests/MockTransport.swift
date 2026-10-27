@@ -8,13 +8,14 @@ import OpenAPIRuntime
 @testable import PhotosImmichSyncCore
 
 /// OpenAPI transport double: plays canned responses in order and records every
-/// request it sees (post-middleware, so headers added by middlewares are visible).
+/// request it sees (post-middleware, so headers added by middlewares are visible),
+/// along with each request body collected as a string.
 final class MockTransport: ClientTransport, @unchecked Sendable {
   struct Exhausted: Error {}
 
   private let lock = NSLock()
   private var canned: [Result<(HTTPResponse, HTTPBody?), any Error>]
-  private var recorded: [HTTPRequest] = []
+  private var recorded: [(request: HTTPRequest, body: String?)] = []
 
   init(_ responses: [Result<(HTTPResponse, HTTPBody?), any Error>]) {
     self.canned = responses
@@ -23,8 +24,9 @@ final class MockTransport: ClientTransport, @unchecked Sendable {
   func send(
     _ request: HTTPRequest, body: HTTPBody?, baseURL: URL, operationID: String
   ) async throws -> (HTTPResponse, HTTPBody?) {
+    let bodyString: String? = if let body { try await String(collecting: body, upTo: 1 << 20) } else { nil }
     lock.lock()
-    recorded.append(request)
+    recorded.append((request, bodyString))
     let next = canned.isEmpty ? nil : canned.removeFirst()
     lock.unlock()
     guard let next else { throw Exhausted() }
@@ -34,7 +36,13 @@ final class MockTransport: ClientTransport, @unchecked Sendable {
   var requests: [HTTPRequest] {
     lock.lock()
     defer { lock.unlock() }
-    return recorded
+    return recorded.map(\.request)
+  }
+
+  var bodies: [String?] {
+    lock.lock()
+    defer { lock.unlock() }
+    return recorded.map(\.body)
   }
 }
 
