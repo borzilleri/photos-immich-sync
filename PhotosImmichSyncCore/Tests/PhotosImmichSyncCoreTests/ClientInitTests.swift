@@ -3,9 +3,8 @@ import Testing
 
 @testable import PhotosImmichSyncCore
 
-/// Only the *throwing* init paths are exercised here: a successful client init creates
-/// an HTTPClient that is retained for the process lifetime (see `retainedHTTPClients`),
-/// so tests avoid it until the lifecycle fix lands (pre-work item 3).
+/// Invalid URLs must throw *before* any HTTPClient is created — an orphaned,
+/// never-shut-down HTTPClient crashes on deinit.
 private let INVALID_URLS = ["", "   ", "notaurl", "ftp://host", "http://"]
 
 @Suite struct ClientInitTests {
@@ -23,5 +22,21 @@ private let INVALID_URLS = ["", "   ", "notaurl", "ftp://host", "http://"]
     #expect(throws: MetadataApiError.self) {
       _ = try MetadataApiClient(config)
     }
+  }
+
+  @Test func successfulClientsOwnAndShutDownTheirHTTPClients() async throws {
+    // Round-trips the real lifecycle: convenience init builds an HTTPClient, shutdown
+    // releases it, and deinit afterwards is clean (no precondition crash).
+    let immich = try ImmichApiClient(makeApiConfig())
+    await immich.shutdown()
+    let metadata = try MetadataApiClient(makeApiConfig())
+    await metadata.shutdown()
+  }
+
+  @Test func mockBackedClientsShutDownAsANoOp() async throws {
+    let (immich, _) = try makeMockedImmichClient(responses: [])
+    await immich.shutdown()
+    let (metadata, _) = try makeMockedMetadataClient { _, _ in (200, "") }
+    await metadata.shutdown()
   }
 }

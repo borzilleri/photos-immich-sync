@@ -2,9 +2,7 @@ import ArgumentParser
 import AsyncHTTPClient
 import Foundation
 import HTTPTypes
-import NIOConcurrencyHelpers
 import NIOCore
-import NIOHTTP2
 import OpenAPIAsyncHTTPClient
 import OpenAPIRuntime
 import OpenAPIURLSession
@@ -117,18 +115,6 @@ private struct ConcurrencyLimitMiddleware: ClientMiddleware {
   }
 }
 
-// Retriable Http Error Codes
-private let RETRYABLE_HTTP_CLIENT_ERRORS: [HTTPClientError] = [.deadlineExceeded, .readTimeout, .writeTimeout]
-private let RETRYABLE_HTTP2_ERROR_CODES: [HTTP2ErrorCode] = [
-  .cancel, .refusedStream, .enhanceYourCalm, .internalError, .connectError,
-]
-
-// Global Mutable State
-// we want this to die when the app exits, not when the client de-inits
-// This probably avoids some issues resulting in a seg-fault.
-// The NIOLockedBox just lets us mutate it cleanly
-private let retainedHTTPClients = NIOLockedValueBox<[HTTPClient]>([])
-
 final public class ImmichApiClient: Sendable {
   let SEARCH_MAX_SIZE: Int = 1_000
   let SEARCH_MAX_PAGES: Int = 10_000
@@ -137,41 +123,38 @@ final public class ImmichApiClient: Sendable {
   private let client: Client
   private let retryAttempts: Int
   private let backoffSleep: @Sendable (Duration) async throws -> Void
+  /// The HTTPClient this instance built (and must shut down). Nil for mock-backed clients.
+  private let ownedHTTPClient: HTTPClient?
 
   public convenience init(_ config: ImmichApiConfig) throws {
-    // Validate before creating the HTTPClient so a bad URL doesn't leak a retained client.
+    // Validate before creating the HTTPClient: an orphaned, never-shut-down
+    // HTTPClient crashes on deinit.
     _ = try Self.validateServerURL(config.url)
 
-    var httpConfig = HTTPClient.Configuration.singletonConfiguration
-    httpConfig.timeout.connect = config.connectTimeout.toTimeAmount()
-    let idleTimeout = config.connectionIdleTimeout.map({ $0.toTimeAmount() })
-    httpConfig.timeout.read = idleTimeout
-    httpConfig.timeout.write = idleTimeout
-    httpConfig.connectionPool.concurrentHTTP1ConnectionsPerHostSoftLimit = max(1, config.maxConcurrentRequests)
-    let httpClient = HTTPClient(
-      eventLoopGroup: HTTPClient.defaultEventLoopGroup,
-      configuration: httpConfig
-    )
-    // Retain for the process lifetime so it is never shut down or deinited (see note above).
-    retainedHTTPClients.withLockedValue { $0.append(httpClient) }
+    let httpClient = HTTPClient.make(for: config)
 
     let deadline = config.requestTimeout.map({ $0.toTimeAmount() }) ?? .nanoseconds(.max)
     let transportConfig = AsyncHTTPClientTransport.Configuration(
       client: httpClient,
       timeout: deadline
     )
-    try self.init(config, transport: AsyncHTTPClientTransport(configuration: transportConfig))
+    try self.init(
+      config,
+      transport: AsyncHTTPClientTransport(configuration: transportConfig),
+      ownedHTTPClient: httpClient)
   }
 
   /// Test constructor to allow injection of mocked internal dependencies.
   init(
     _ config: ImmichApiConfig,
     transport: any ClientTransport,
-    sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
+    sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
+    ownedHTTPClient: HTTPClient? = nil
   ) throws {
     let baseURL = try Self.validateServerURL(config.url)
     retryAttempts = max(1, config.retryAttempts)
     backoffSleep = sleep
+    self.ownedHTTPClient = ownedHTTPClient
     let limiter = AsyncSemaphore(maxConcurrentTasks: max(1, config.maxConcurrentRequests))
     self.client = Client(
       serverURL: baseURL,
@@ -205,88 +188,16 @@ final public class ImmichApiClient: Sendable {
     return ImmichApiError.unknown(statusCode: status, body: bodyStr)
   }
 
-  private func logFinalFailure(_ operation: String, error: Error) {
-    if error is CancellationError || Task.isCancelled {
-      Self.log.debug("\(operation) cancelled")
-      return
-    }
-    if let immich = error as? ImmichApiError, case .unknown(let status, let body) = immich {
-      Self.log.error("Error response from \(operation): \(status) - \(body)")
-    } else {
-      Self.log.error("Error from \(operation).", cause: error)
-    }
+  /// Releases the underlying HTTPClient's resources. Call once when the run that owns
+  /// this client finishes; a no-op for mock-backed clients.
+  public func shutdown() async {
+    await ownedHTTPClient?.shutdownQuietly(log: Self.log)
   }
 
-  static func canRetryAfterClientFailure(_ error: Error) -> Bool {
-    var error = error
-    // Unwrap OpenAPI Client Errors into their underlying error.
-    while let clientError = error as? ClientError {
-      error = clientError.underlyingError
-    }
-    if error is TimeoutError { return true }
-    if let httpErr = error as? HTTPClientError, RETRYABLE_HTTP_CLIENT_ERRORS.contains(httpErr) { return true }
-    if let streamClosed = error as? NIOHTTP2Errors.StreamClosed,
-      RETRYABLE_HTTP2_ERROR_CODES.contains(streamClosed.errorCode)
-    {
-      return true
-    }
-    if error is CancellationError { return false }
-    if error is DecodingError { return false }
-    if let immich = error as? ImmichApiError, case .unknown(let status, _) = immich {
-      if status == 0 { return true }
-      if status == 429 { return true }
-      if status >= 500 && status < 600 { return true }
-      return false
-    }
-    if let urlError = error as? URLError {
-      switch urlError.code {
-      case .timedOut, .notConnectedToInternet, .networkConnectionLost, .cannotConnectToHost,
-        .cannotFindHost, .dnsLookupFailed:
-        return true
-      default:
-        return false
-      }
-    }
-    let ns = error as NSError
-    if ns.domain == NSURLErrorDomain {
-      switch ns.code {
-      case NSURLErrorTimedOut,
-        NSURLErrorNotConnectedToInternet,
-        NSURLErrorNetworkConnectionLost,
-        NSURLErrorCannotConnectToHost,
-        NSURLErrorCannotFindHost,
-        NSURLErrorDNSLookupFailed:
-        return true
-      default:
-        return false
-      }
-    }
-    return false
-  }
-
-  private func withClientRetry<T>(_ operation: String, _ work: @escaping () async throws -> T) async throws -> T {
-    for attempt in 1...self.retryAttempts {
-      do {
-        return try await work()
-      } catch {
-        if !Self.canRetryAfterClientFailure(error) || attempt == self.retryAttempts {
-          logFinalFailure(operation, error: error)
-          throw error
-        }
-        let waitSeconds = min(attempt, 5)
-        let backoff = Duration.seconds(waitSeconds)
-        Self.log.info(
-          "Immich API attempt \(attempt)/\(self.retryAttempts) failed for \(operation); retrying after ~\(waitSeconds) seconds",
-          cause: error
-        )
-        do {
-          try await backoffSleep(backoff)
-        } catch {
-          throw error
-        }
-      }
-    }
-    preconditionFailure("unreachable: withClientRetry")
+  private func withClientRetry<T>(_ operation: String, _ work: () async throws -> T) async throws -> T {
+    try await RetryPolicy.withRetry(
+      operation, label: "Immich API", attempts: retryAttempts, log: Self.log,
+      sleep: backoffSleep, work)
   }
 
   public func validateApiKey(config: ImmichConfig) async throws {

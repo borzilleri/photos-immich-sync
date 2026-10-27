@@ -1,3 +1,5 @@
+import Foundation
+import NIOConcurrencyHelpers
 import Testing
 import os
 
@@ -34,6 +36,73 @@ import os
     let summary = LogSink().summary()
     #expect(summary.errors == 0)
     #expect(summary.warnings == 0)
+  }
+
+  @Test func beginRunResetsCountersForTheNextRun() {
+    let sink = LogSink()
+    sink.configure(verbosity: .quiet)
+    emit(sink, .error)
+    emit(sink, .warning)
+    sink.beginRun()
+    #expect(sink.summary().errors == 0)
+    #expect(sink.summary().warnings == 0)
+    // The next run tallies independently.
+    emit(sink, .warning)
+    #expect(sink.summary().warnings == 1)
+  }
+
+  // MARK: observers
+
+  @Test func observersReceiveEveryRecordRegardlessOfVerbosity() {
+    let sink = LogSink()
+    sink.configure(verbosity: .quiet)  // console fully gated; observers must not be
+    let received = NIOLockedValueBox<[LogRecord]>([])
+    sink.addObserver { record in received.withLockedValue { $0.append(record) } }
+
+    emit(sink, .error)
+    emit(sink, .trace)
+    emit(sink, .progress)
+
+    let levels = received.withLockedValue { $0.map(\.level) }
+    #expect(levels == [.error, .trace, .progress])
+  }
+
+  @Test func multipleObserversAllFire() {
+    let sink = LogSink()
+    sink.configure(verbosity: .quiet)
+    let first = NIOLockedValueBox(0)
+    let second = NIOLockedValueBox(0)
+    sink.addObserver { _ in first.withLockedValue { $0 += 1 } }
+    sink.addObserver { _ in second.withLockedValue { $0 += 1 } }
+
+    emit(sink, .info)
+
+    #expect(first.withLockedValue { $0 } == 1)
+    #expect(second.withLockedValue { $0 } == 1)
+  }
+
+  @Test func recordCarriesAllStructuredFields() {
+    struct Boom: Error {}
+    let sink = LogSink()
+    sink.configure(verbosity: .quiet)
+    let received = NIOLockedValueBox<[LogRecord]>([])
+    sink.addObserver { record in received.withLockedValue { $0.append(record) } }
+
+    let before = Date()
+    sink.emit(
+      level: .warning, category: "Cat", osLogger: osLogger,
+      message: "msg", stage: .uploadAsset, context: [.filename: "f.jpg"],
+      cause: Boom(), sourceLocation: "File.swift:1:fn()")
+
+    let record = received.withLockedValue { $0.first }
+    #expect(record?.level == .warning)
+    #expect(record?.category == "Cat")
+    #expect(record?.message == "msg")
+    #expect(record?.stage == .uploadAsset)
+    #expect(record?.context == [.filename: "f.jpg"])
+    #expect(record?.causeDescription?.isEmpty == false)
+    #expect(record?.sourceLocation == "File.swift:1:fn()")
+    #expect(record.map { $0.timestamp >= before } == true)
   }
 
   // The doc-comment verbosity table in Logging.swift, as a test matrix:
