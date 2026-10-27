@@ -1184,7 +1184,7 @@ public class ImmichService {
           var remoteAssetsFetched = false
           do {
             let remoteTaggedAssets = try await self.client.searchAssets(
-              Components.Schemas.MetadataSearchDto(tagIds: [tagId]))
+              Components.Schemas.MetadataSearchDto(filter: .init(tagIds: .init(any: [tagId]))))
             remoteAssetsFetched = true
             remoteTaggedAssetIds = Set(remoteTaggedAssets.map(\.id))
           } catch {

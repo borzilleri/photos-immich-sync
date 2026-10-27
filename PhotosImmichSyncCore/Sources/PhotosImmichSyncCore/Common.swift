@@ -1,7 +1,7 @@
 import Foundation
 import Photos
 
-public let IMMICH_SUPPORTED_VERSION_MAJOR = 3
+public let IMMICH_MIN_SUPPORTED_VERSION = SemanticVersion(major: 3, minor: 2, patch: 0)
 public let APP_NAME = "photos-immich-sync"
 let IMMICH_DEVICE_ID = "io.rampant.photos-immich-sync"
 let LOGGER_SUBSYSTEM = "photos-immich-sync"

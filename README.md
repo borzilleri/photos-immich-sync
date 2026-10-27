@@ -20,12 +20,20 @@ should use is of [v1.2.3](https://github.com/borzilleri/photos-immich-sync/relea
 Installation instructions specific to that version are available [here](https://github.com/borzilleri/photos-immich-sync/blob/v1.2.3/README.md).
 
 > [!CAUTION]
+> The 2.x version of `photos-immich-sync` will no longer receive updates.
+> Immich 3.2 introduced a change to the search api signature, and this app
+> has been updated to use it with v3.x. It is *not* backwards compatible.
+> The 2.x branch will continue to work, until Immich's deprecated search api
+> is fully removed.
+
+> [!CAUTION]
 > The 1.x version of `photos-immich-sync` will no longer receive updates. It is
 > **strongly** recommended to update to Immich >3.0 and `photos-immich-sync` 
 > >2.0
 
 | photos-immich-sync version | Immich version |
 | ---- | ---- |
+| 3.x | 3.2+ |
 | 2.x | 3+ |
 | <1.2.3 | 2.x |
 

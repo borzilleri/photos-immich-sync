@@ -259,6 +259,14 @@ final public class ImmichApiClient: Sendable {
     }
   }
 
+  /// Throws if the server reports a version older than `IMMICH_MIN_SUPPORTED_VERSION`.
+  /// An unparseable version is allowed through, matching `checkServerVersion`.
+  public func ensureSupportedServerVersion() async throws {
+    if let version = try await checkServerVersion(), version < IMMICH_MIN_SUPPORTED_VERSION {
+      throw ImmichConfigError.unsupportedServerVersion(version)
+    }
+  }
+
   // MARK: Asset APIs
 
   func getAsset(id: String) async throws -> Components.Schemas.AssetResponseDto {
@@ -503,31 +511,24 @@ final public class ImmichApiClient: Sendable {
   {
     var items: [Components.Schemas.AssetResponseDto] = []
     var pagesFetched = 1
-    var previousPage: Int = 1
 
     var dto = originalDto
     dto.size = SEARCH_MAX_SIZE
-    dto.page = previousPage
 
     var result = try await execSearchAssets(dto)
     items.append(contentsOf: result.assets.items)
 
-    while let nextPage = result.assets.nextPage {
-      guard let nextPageValue = Int(nextPage) else {
+    while let nextCursor = result.assets.nextCursor {
+      guard nextCursor != dto.cursor else {
         throw ImmichApiError.invalidPagination(
-          reason: "Server returned non-numeric nextPage token \"\(nextPage)\"")
-      }
-      guard nextPageValue > previousPage else {
-        throw ImmichApiError.invalidPagination(
-          reason: "Server returned non-advancing nextPage \(nextPageValue) after page \(previousPage)")
+          reason: "Server returned repeated nextCursor \"\(nextCursor)\"")
       }
       pagesFetched += 1
       guard pagesFetched <= SEARCH_MAX_PAGES else {
         throw ImmichApiError.invalidPagination(
           reason: "Pagination exceeded max page count (\(SEARCH_MAX_PAGES)); aborting")
       }
-      dto.page = nextPageValue
-      previousPage = nextPageValue
+      dto.cursor = nextCursor
       result = try await execSearchAssets(dto)
       items.append(contentsOf: result.assets.items)
     }
@@ -535,7 +536,7 @@ final public class ImmichApiClient: Sendable {
   }
 
   func searchByAlbum(_ id: String) async throws -> [Components.Schemas.AssetResponseDto] {
-    let dto = Components.Schemas.MetadataSearchDto(albumIds: [id])
+    let dto = Components.Schemas.MetadataSearchDto(filter: .init(albumIds: .init(any: [id])))
     return try await searchAssets(dto)
   }
 
