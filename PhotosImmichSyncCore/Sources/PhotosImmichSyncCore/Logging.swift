@@ -45,7 +45,7 @@ public struct RunSummary: Sendable {
   public var hasWarnings: Bool { warnings > 0 }
 }
 
-public enum LogContextKey: String {
+public enum LogContextKey: String, Sendable {
   case immichId
   case localIdentifier
   case cloudIdentifier
@@ -269,18 +269,16 @@ final class LogSink: @unchecked Sendable {
   }
 }
 
-/// Global logging facade. `configure(verbosity:)` must be called once at startup
-/// before services begin emitting. Categories are typically created once per
+/// Global logging facade. `beginRun(verbosity:)` must be called before services
+/// begin emitting — once per run. Categories are typically created once per
 /// long-lived service: `private let log = Log.forCategory("Immich")`.
 public enum Log {
   fileprivate static let sink = LogSink()
 
-  public static func configure(verbosity: Verbosity) {
+  /// Applies the console verbosity and starts a fresh error/warning tally for the
+  /// run about to begin.
+  public static func beginRun(verbosity: Verbosity) {
     sink.configure(verbosity: verbosity)
-  }
-
-  /// Starts a fresh error/warning tally for the run about to begin.
-  public static func beginRun() {
     sink.beginRun()
   }
 

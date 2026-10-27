@@ -48,8 +48,7 @@ extension PhotosImmichSync {
     @Option(help: "Path to configuration file.") var configFile: String = DEFAULT_CONFIG_PATH
 
     func run() async throws {
-      Log.configure(verbosity: Verbosity.fromFlags(quiet: global.quiet, verbose: global.verbose))
-      Log.beginRun()
+      Log.beginRun(verbosity: Verbosity.fromFlags(quiet: global.quiet, verbose: global.verbose))
       let log = Log.forCategory(APP_NAME)
       do {
         let config = try AppConfig.load(fromFile: configFile)
@@ -210,8 +209,7 @@ private func runSync(
   sync: SyncOptions,
   perform: (AppConfig, Services) async throws -> Bool
 ) async throws {
-  Log.configure(verbosity: Verbosity.fromFlags(quiet: global.quiet, verbose: global.verbose))
-  Log.beginRun()
+  Log.beginRun(verbosity: Verbosity.fromFlags(quiet: global.quiet, verbose: global.verbose))
   let log = Log.forCategory(APP_NAME)
   do {
     let config = try AppConfig.load(fromFile: sync.configFile)
